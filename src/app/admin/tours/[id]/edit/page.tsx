@@ -64,14 +64,14 @@ const tourTypes = [
   { value: 'private', label: 'Private' },
 ];
 
-const destinations = [
-  'Uzbekistan',
-  'Kazakhstan',
-  'Kyrgyzstan',
-  'Tajikistan',
-  'Turkmenistan',
-  'Central Asia',
-];
+interface Destination {
+  id: number;
+  slug: string;
+  name_en: string;
+  name_de: string;
+  name_ru: string;
+  status: string;
+}
 
 export default function EditTourPage() {
   const router = useRouter();
@@ -83,6 +83,7 @@ export default function EditTourPage() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'basic' | 'content' | 'itinerary' | 'images'>('basic');
+  const [destinations, setDestinations] = useState<Destination[]>([]);
 
   const [formData, setFormData] = useState<Tour>({
     id: 0,
@@ -158,6 +159,22 @@ export default function EditTourPage() {
 
     loadTour();
   }, [tourId]);
+
+  // Fetch destinations from API
+  useEffect(() => {
+    const fetchDestinations = async () => {
+      try {
+        const response = await fetch('/api/destinations?status=active');
+        if (response.ok) {
+          const data = await response.json();
+          setDestinations(data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching destinations:', error);
+      }
+    };
+    fetchDestinations();
+  }, []);
 
   const handleChange = (field: keyof Tour, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -423,7 +440,7 @@ export default function EditTourPage() {
                 >
                   <option value="">Select destination</option>
                   {destinations.map((dest) => (
-                    <option key={dest} value={dest}>{dest}</option>
+                    <option key={dest.id} value={dest.name_en}>{dest.name_en}</option>
                   ))}
                 </select>
               </div>

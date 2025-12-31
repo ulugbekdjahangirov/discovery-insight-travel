@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -81,14 +81,14 @@ const tourTypes = [
   { value: 'private', label: 'Private' },
 ];
 
-const destinations = [
-  'Uzbekistan',
-  'Kazakhstan',
-  'Kyrgyzstan',
-  'Tajikistan',
-  'Turkmenistan',
-  'Central Asia',
-];
+interface Destination {
+  id: number;
+  slug: string;
+  name_en: string;
+  name_de: string;
+  name_ru: string;
+  status: string;
+}
 
 export default function NewTourPage() {
   const router = useRouter();
@@ -99,6 +99,23 @@ export default function NewTourPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploadingMain, setUploadingMain] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+
+  // Fetch destinations from API
+  useEffect(() => {
+    const fetchDestinations = async () => {
+      try {
+        const response = await fetch('/api/destinations?status=active');
+        if (response.ok) {
+          const data = await response.json();
+          setDestinations(data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching destinations:', error);
+      }
+    };
+    fetchDestinations();
+  }, []);
 
   // Generate slug from English title
   const generateSlug = (title: string) => {
@@ -577,7 +594,7 @@ export default function NewTourPage() {
                 >
                   <option value="">Select destination</option>
                   {destinations.map((dest) => (
-                    <option key={dest} value={dest}>{dest}</option>
+                    <option key={dest.id} value={dest.name_en}>{dest.name_en}</option>
                   ))}
                 </select>
                 {errors.destination && <p className="text-red-500 text-sm mt-1">{errors.destination}</p>}

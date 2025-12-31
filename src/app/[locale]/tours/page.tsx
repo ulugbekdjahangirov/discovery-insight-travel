@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { useSearchParams } from 'next/navigation';
 import { Grid, List, SlidersHorizontal, Loader2 } from 'lucide-react';
 import TourCard from '@/components/tours/TourCard';
 
@@ -22,39 +23,73 @@ interface Tour {
   status: string;
 }
 
+interface Destination {
+  id: number;
+  slug: string;
+  name_en: string;
+  name_de: string;
+  name_ru: string;
+}
+
 export default function ToursPage() {
   const t = useTranslations();
-  const locale = useLocale();
+  const locale = useLocale() as 'en' | 'de' | 'ru';
+  const searchParams = useSearchParams();
+  const destinationParam = searchParams.get('destination') || '';
+
   const [tours, setTours] = useState<Tour[]>([]);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
-    destination: '',
+    destination: destinationParam,
     type: '',
     duration: '',
     priceRange: '',
   });
   const [sortBy, setSortBy] = useState('popularity');
 
-  // Fetch tours from API
+  // Update filter when URL param changes
   useEffect(() => {
-    const fetchTours = async () => {
+    if (destinationParam) {
+      setFilters(prev => ({ ...prev, destination: destinationParam }));
+    }
+  }, [destinationParam]);
+
+  // Fetch tours and destinations from API
+  useEffect(() => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/tours?status=active');
-        if (response.ok) {
-          const data = await response.json();
-          setTours(data);
+        // Fetch tours and destinations in parallel
+        const [toursRes, destRes] = await Promise.all([
+          fetch('/api/tours?status=active'),
+          fetch('/api/destinations?status=active')
+        ]);
+
+        if (toursRes.ok) {
+          const toursData = await toursRes.json();
+          setTours(toursData);
+        }
+
+        if (destRes.ok) {
+          const destData = await destRes.json();
+          setDestinations(destData);
         }
       } catch (error) {
-        console.error('Error fetching tours:', error);
+        console.error('Error fetching data:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchTours();
+    fetchData();
   }, []);
+
+  // Get localized destination name
+  const getDestinationName = (dest: Destination) => {
+    return dest[`name_${locale}`] || dest.name_en;
+  };
 
   // Transform tour data for TourCard component
   const transformedTours = tours.map((tour) => ({
@@ -76,8 +111,14 @@ export default function ToursPage() {
   }));
 
   const filteredTours = transformedTours.filter((tour) => {
-    if (filters.destination && tour.destination.toLowerCase() !== filters.destination.toLowerCase()) {
-      return false;
+    // Filter by destination - check if tour destination contains the filter value
+    if (filters.destination) {
+      const tourDest = tour.destination?.toLowerCase() || '';
+      const filterDest = filters.destination.toLowerCase();
+      // Match if destination contains the filter OR filter contains the destination
+      if (!tourDest.includes(filterDest) && !filterDest.includes(tourDest)) {
+        return false;
+      }
     }
     if (filters.type && tour.type !== filters.type) {
       return false;
@@ -188,11 +229,11 @@ export default function ToursPage() {
                   <option value="">
                     {locale === 'en' ? 'All' : locale === 'de' ? 'Alle' : 'Все'}
                   </option>
-                  <option value="uzbekistan">{t('navigation.uzbekistan')}</option>
-                  <option value="kazakhstan">{t('navigation.kazakhstan')}</option>
-                  <option value="kyrgyzstan">{t('navigation.kyrgyzstan')}</option>
-                  <option value="tajikistan">{t('navigation.tajikistan')}</option>
-                  <option value="central asia">{t('navigation.silkRoad')}</option>
+                  {destinations.map((dest) => (
+                    <option key={dest.id} value={dest.slug}>
+                      {getDestinationName(dest)}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
