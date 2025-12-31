@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -10,7 +10,14 @@ import {
   Upload,
   X,
   Image as ImageIcon,
+  Navigation,
 } from 'lucide-react';
+
+interface ParentMenu {
+  id: number;
+  name_en: string;
+  location: string;
+}
 
 export default function NewDestinationPage() {
   const router = useRouter();
@@ -19,6 +26,7 @@ export default function NewDestinationPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
+  const [parentMenus, setParentMenus] = useState<ParentMenu[]>([]);
   const [formData, setFormData] = useState({
     slug: '',
     name_en: '',
@@ -32,7 +40,32 @@ export default function NewDestinationPage() {
     region: '',
     status: 'active',
     featured: false,
+    addToMenu: true,
+    parentMenuId: '',
   });
+
+  // Fetch parent menus
+  useEffect(() => {
+    const fetchParentMenus = async () => {
+      try {
+        const response = await fetch('/api/menus?location=header');
+        if (response.ok) {
+          const data = await response.json();
+          setParentMenus(data);
+          // Auto-select "Destinations" menu if exists
+          const destinationsMenu = data.find((m: ParentMenu) =>
+            m.name_en.toLowerCase() === 'destinations'
+          );
+          if (destinationsMenu) {
+            setFormData(prev => ({ ...prev, parentMenuId: String(destinationsMenu.id) }));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching parent menus:', error);
+      }
+    };
+    fetchParentMenus();
+  }, []);
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -78,6 +111,7 @@ export default function NewDestinationPage() {
     setError('');
 
     try {
+      // Create destination
       const response = await fetch('/api/destinations', {
         method: 'POST',
         headers: {
@@ -104,6 +138,29 @@ export default function NewDestinationPage() {
       });
 
       if (response.ok) {
+        // If "Add to menu" is checked, create menu item
+        if (formData.addToMenu && formData.parentMenuId) {
+          try {
+            await fetch('/api/menus', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name_en: formData.name_en,
+                name_de: formData.name_de || formData.name_en,
+                name_ru: formData.name_ru || formData.name_en,
+                url: `/tours?destination=${formData.slug}`,
+                parent_id: parseInt(formData.parentMenuId),
+                location: 'header',
+                order_index: 99, // Will be last in the list
+                status: formData.status,
+              }),
+            });
+          } catch (menuError) {
+            console.error('Error creating menu item:', menuError);
+            // Don't fail the whole operation if menu creation fails
+          }
+        }
+
         router.push('/admin/destinations');
       } else {
         const data = await response.json();
@@ -261,6 +318,50 @@ export default function NewDestinationPage() {
                 </label>
               </div>
             </div>
+          </div>
+
+          {/* Menu Settings */}
+          <div className="bg-white rounded-xl p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Navigation size={20} className="text-primary-500" />
+              <h2 className="text-lg font-semibold text-secondary-800">Menyu sozlamalari</h2>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="addToMenu"
+                checked={formData.addToMenu}
+                onChange={(e) => handleChange('addToMenu', e.target.checked)}
+                className="w-5 h-5 text-primary-500 border-secondary-300 rounded focus:ring-primary-500"
+              />
+              <label htmlFor="addToMenu" className="text-sm font-medium text-secondary-700">
+                Menyuga avtomatik qo'shish
+              </label>
+            </div>
+
+            {formData.addToMenu && (
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
+                  Qaysi menyu ostida ko'rinsin?
+                </label>
+                <select
+                  value={formData.parentMenuId}
+                  onChange={(e) => handleChange('parentMenuId', e.target.value)}
+                  className="w-full px-4 py-3 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">-- Menyu tanlang --</option>
+                  {parentMenus.map((menu) => (
+                    <option key={menu.id} value={menu.id}>
+                      {menu.name_en}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-sm text-secondary-500 mt-1">
+                  Masalan: "Destinations" tanlasangiz, yangi destination shu menyu ostida dropdown sifatida ko'rinadi
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Descriptions */}
