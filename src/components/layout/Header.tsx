@@ -39,6 +39,7 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
+  const [openSubmenu, setOpenSubmenu] = useState<number | null>(null);
   const [menus, setMenus] = useState<MenuItem[]>(fallbackMenus);
 
   // Fetch menus from API
@@ -158,7 +159,7 @@ export default function Header() {
                     key={item.id}
                     className="relative"
                     onMouseEnter={() => setOpenDropdown(item.id)}
-                    onMouseLeave={() => setOpenDropdown(null)}
+                    onMouseLeave={() => { setOpenDropdown(null); setOpenSubmenu(null); }}
                   >
                     <Link
                       href={getFullUrl(item.url)}
@@ -169,18 +170,58 @@ export default function Header() {
                     </Link>
                     {isOpen && (
                       <div className="absolute left-0 top-full pt-2">
-                        <div className="bg-white rounded-lg shadow-lg py-2 min-w-[180px] border border-secondary-100">
-                          {item.children!.map((child) => (
-                            <Link
-                              key={child.id}
-                              href={getFullUrl(child.url)}
-                              target={child.open_in_new_tab ? '_blank' : undefined}
-                              rel={child.open_in_new_tab ? 'noopener noreferrer' : undefined}
-                              className="block px-4 py-2 text-secondary-700 hover:bg-primary-50 hover:text-primary-500 transition-colors"
-                            >
-                              {getMenuName(child)}
-                            </Link>
-                          ))}
+                        <div className="bg-white rounded-lg shadow-lg py-2 min-w-[200px] border border-secondary-100">
+                          {item.children!.map((child) => {
+                            const hasSubChildren = child.children && child.children.length > 0;
+                            const isSubOpen = openSubmenu === child.id;
+
+                            if (hasSubChildren) {
+                              return (
+                                <div
+                                  key={child.id}
+                                  className="relative"
+                                  onMouseEnter={() => setOpenSubmenu(child.id)}
+                                  onMouseLeave={() => setOpenSubmenu(null)}
+                                >
+                                  <div className="flex items-center justify-between px-4 py-2 text-secondary-700 hover:bg-primary-50 hover:text-primary-500 cursor-pointer transition-colors">
+                                    <span>{getMenuName(child)}</span>
+                                    <ChevronDown size={14} className="-rotate-90" />
+                                  </div>
+                                  {isSubOpen && (
+                                    <div className="absolute left-full top-0 ml-1">
+                                      <div className="bg-white rounded-lg shadow-lg py-2 min-w-[180px] border border-secondary-100">
+                                        {child.children!.map((subChild) => (
+                                          <Link
+                                            key={subChild.id}
+                                            href={getFullUrl(subChild.url)}
+                                            target={subChild.open_in_new_tab ? '_blank' : undefined}
+                                            rel={subChild.open_in_new_tab ? 'noopener noreferrer' : undefined}
+                                            className="block px-4 py-2 text-secondary-700 hover:bg-primary-50 hover:text-primary-500 transition-colors"
+                                            onClick={() => { setOpenDropdown(null); setOpenSubmenu(null); }}
+                                          >
+                                            {getMenuName(subChild)}
+                                          </Link>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <Link
+                                key={child.id}
+                                href={getFullUrl(child.url)}
+                                target={child.open_in_new_tab ? '_blank' : undefined}
+                                rel={child.open_in_new_tab ? 'noopener noreferrer' : undefined}
+                                className="block px-4 py-2 text-secondary-700 hover:bg-primary-50 hover:text-primary-500 transition-colors"
+                                onClick={() => setOpenDropdown(null)}
+                              >
+                                {getMenuName(child)}
+                              </Link>
+                            );
+                          })}
                         </div>
                       </div>
                     )}

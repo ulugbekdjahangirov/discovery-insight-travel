@@ -13,10 +13,12 @@ import {
   Navigation,
 } from 'lucide-react';
 
-interface ParentMenu {
+interface MenuItem {
   id: number;
   name_en: string;
   location: string;
+  parent_id: number | null;
+  children?: MenuItem[];
 }
 
 export default function NewDestinationPage() {
@@ -26,7 +28,7 @@ export default function NewDestinationPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
-  const [parentMenus, setParentMenus] = useState<ParentMenu[]>([]);
+  const [countryMenus, setCountryMenus] = useState<MenuItem[]>([]);
   const [formData, setFormData] = useState({
     slug: '',
     name_en: '',
@@ -41,30 +43,29 @@ export default function NewDestinationPage() {
     status: 'active',
     featured: false,
     addToMenu: true,
-    parentMenuId: '',
+    countryMenuId: '',
   });
 
-  // Fetch parent menus
+  // Fetch country menus (children of "Destinations" menu)
   useEffect(() => {
-    const fetchParentMenus = async () => {
+    const fetchCountryMenus = async () => {
       try {
         const response = await fetch('/api/menus?location=header');
         if (response.ok) {
           const data = await response.json();
-          setParentMenus(data);
-          // Auto-select "Destinations" menu if exists
-          const destinationsMenu = data.find((m: ParentMenu) =>
+          // Find "Destinations" menu and get its children (countries)
+          const destinationsMenu = data.find((m: MenuItem) =>
             m.name_en.toLowerCase() === 'destinations'
           );
-          if (destinationsMenu) {
-            setFormData(prev => ({ ...prev, parentMenuId: String(destinationsMenu.id) }));
+          if (destinationsMenu && destinationsMenu.children) {
+            setCountryMenus(destinationsMenu.children);
           }
         }
       } catch (error) {
-        console.error('Error fetching parent menus:', error);
+        console.error('Error fetching country menus:', error);
       }
     };
-    fetchParentMenus();
+    fetchCountryMenus();
   }, []);
 
   const handleChange = (field: string, value: any) => {
@@ -138,8 +139,8 @@ export default function NewDestinationPage() {
       });
 
       if (response.ok) {
-        // If "Add to menu" is checked, create menu item
-        if (formData.addToMenu && formData.parentMenuId) {
+        // If "Add to menu" is checked, create menu item under selected country
+        if (formData.addToMenu && formData.countryMenuId) {
           try {
             await fetch('/api/menus', {
               method: 'POST',
@@ -149,15 +150,14 @@ export default function NewDestinationPage() {
                 name_de: formData.name_de || formData.name_en,
                 name_ru: formData.name_ru || formData.name_en,
                 url: `/tours?destination=${formData.slug}`,
-                parent_id: parseInt(formData.parentMenuId),
+                parent_id: parseInt(formData.countryMenuId),
                 location: 'header',
-                order_index: 99, // Will be last in the list
+                order_index: 99,
                 status: formData.status,
               }),
             });
           } catch (menuError) {
             console.error('Error creating menu item:', menuError);
-            // Don't fail the whole operation if menu creation fails
           }
         }
 
@@ -343,23 +343,28 @@ export default function NewDestinationPage() {
             {formData.addToMenu && (
               <div>
                 <label className="block text-sm font-medium text-secondary-700 mb-2">
-                  Qaysi menyu ostida ko'rinsin?
+                  Qaysi davlat menyusi ostida ko'rinsin?
                 </label>
                 <select
-                  value={formData.parentMenuId}
-                  onChange={(e) => handleChange('parentMenuId', e.target.value)}
+                  value={formData.countryMenuId}
+                  onChange={(e) => handleChange('countryMenuId', e.target.value)}
                   className="w-full px-4 py-3 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
-                  <option value="">-- Menyu tanlang --</option>
-                  {parentMenus.map((menu) => (
+                  <option value="">-- Davlatni tanlang --</option>
+                  {countryMenus.map((menu) => (
                     <option key={menu.id} value={menu.id}>
                       {menu.name_en}
                     </option>
                   ))}
                 </select>
                 <p className="text-sm text-secondary-500 mt-1">
-                  Masalan: "Destinations" tanlasangiz, yangi destination shu menyu ostida dropdown sifatida ko'rinadi
+                  Masalan: "Uzbekistan" tanlasangiz → Destinations → Uzbekistan → [Yangi destination]
                 </p>
+                {countryMenus.length === 0 && (
+                  <p className="text-sm text-amber-600 mt-2">
+                    ⚠️ Avval Supabase'da menus jadvalini yarating va davlat menyularini qo'shing
+                  </p>
+                )}
               </div>
             )}
           </div>

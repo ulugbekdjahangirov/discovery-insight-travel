@@ -28,17 +28,21 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // Organize into tree structure
+    // Organize into tree structure (supports 3 levels)
     const menuItems = data || [];
-    const topLevelItems = menuItems.filter(item => !item.parent_id);
-    const childItems = menuItems.filter(item => item.parent_id);
 
-    // Add children to their parents
-    const menuTree = topLevelItems.map(parent => ({
-      ...parent,
-      children: childItems.filter(child => child.parent_id === parent.id)
+    // Helper function to build tree recursively
+    const buildTree = (items: any[], parentId: number | null = null): any[] => {
+      return items
+        .filter(item => item.parent_id === parentId)
         .sort((a, b) => a.order_index - b.order_index)
-    }));
+        .map(item => ({
+          ...item,
+          children: buildTree(items, item.id)
+        }));
+    };
+
+    const menuTree = buildTree(menuItems, null);
 
     return NextResponse.json(menuTree);
   } catch (error) {
