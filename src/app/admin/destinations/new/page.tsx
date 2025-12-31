@@ -1,25 +1,15 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ArrowLeft,
   Save,
   Loader2,
-  Upload,
   X,
   Image as ImageIcon,
-  Navigation,
 } from 'lucide-react';
-
-interface MenuItem {
-  id: number;
-  name_en: string;
-  location: string;
-  parent_id: number | null;
-  children?: MenuItem[];
-}
 
 export default function NewDestinationPage() {
   const router = useRouter();
@@ -28,7 +18,6 @@ export default function NewDestinationPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
-  const [countryMenus, setCountryMenus] = useState<MenuItem[]>([]);
   const [formData, setFormData] = useState({
     slug: '',
     name_en: '',
@@ -42,31 +31,7 @@ export default function NewDestinationPage() {
     region: '',
     status: 'active',
     featured: false,
-    addToMenu: true,
-    countryMenuId: '',
   });
-
-  // Fetch country menus (children of "Destinations" menu)
-  useEffect(() => {
-    const fetchCountryMenus = async () => {
-      try {
-        const response = await fetch('/api/menus?location=header');
-        if (response.ok) {
-          const data = await response.json();
-          // Find "Destinations" menu and get its children (countries)
-          const destinationsMenu = data.find((m: MenuItem) =>
-            m.name_en.toLowerCase() === 'destinations'
-          );
-          if (destinationsMenu && destinationsMenu.children) {
-            setCountryMenus(destinationsMenu.children);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching country menus:', error);
-      }
-    };
-    fetchCountryMenus();
-  }, []);
 
   const handleChange = (field: string, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -112,7 +77,6 @@ export default function NewDestinationPage() {
     setError('');
 
     try {
-      // Create destination
       const response = await fetch('/api/destinations', {
         method: 'POST',
         headers: {
@@ -139,28 +103,6 @@ export default function NewDestinationPage() {
       });
 
       if (response.ok) {
-        // If "Add to menu" is checked, create menu item under selected country
-        if (formData.addToMenu && formData.countryMenuId) {
-          try {
-            await fetch('/api/menus', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                name_en: formData.name_en,
-                name_de: formData.name_de || formData.name_en,
-                name_ru: formData.name_ru || formData.name_en,
-                url: `/tours?destination=${formData.slug}`,
-                parent_id: parseInt(formData.countryMenuId),
-                location: 'header',
-                order_index: 99,
-                status: formData.status,
-              }),
-            });
-          } catch (menuError) {
-            console.error('Error creating menu item:', menuError);
-          }
-        }
-
         router.push('/admin/destinations');
       } else {
         const data = await response.json();
@@ -185,8 +127,8 @@ export default function NewDestinationPage() {
           <ArrowLeft size={24} className="text-secondary-600" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-secondary-800">Add New Destination</h1>
-          <p className="text-secondary-600">Create a new travel destination</p>
+          <h1 className="text-2xl font-bold text-secondary-800">Yangi Destination</h1>
+          <p className="text-secondary-600">Yangi sayohat manzilini yarating</p>
         </div>
       </div>
 
@@ -194,13 +136,13 @@ export default function NewDestinationPage() {
         <div className="space-y-6">
           {/* Basic Info */}
           <div className="bg-white rounded-xl p-6 shadow-sm space-y-6">
-            <h2 className="text-lg font-semibold text-secondary-800">Basic Information</h2>
+            <h2 className="text-lg font-semibold text-secondary-800">Asosiy ma'lumotlar</h2>
 
             {/* Names in 3 languages */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-secondary-700 mb-2">
-                  Name (English) *
+                  Nomi (Inglizcha) *
                 </label>
                 <input
                   type="text"
@@ -210,29 +152,32 @@ export default function NewDestinationPage() {
                     handleChange('slug', generateSlug(e.target.value));
                   }}
                   className="w-full px-4 py-3 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="Samarkand"
                   required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-secondary-700 mb-2">
-                  Name (German)
+                  Nomi (Nemischa)
                 </label>
                 <input
                   type="text"
                   value={formData.name_de}
                   onChange={(e) => handleChange('name_de', e.target.value)}
                   className="w-full px-4 py-3 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="Samarkand"
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-secondary-700 mb-2">
-                  Name (Russian)
+                  Nomi (Ruscha)
                 </label>
                 <input
                   type="text"
                   value={formData.name_ru}
                   onChange={(e) => handleChange('name_ru', e.target.value)}
                   className="w-full px-4 py-3 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="Самарканд"
                 />
               </div>
             </div>
@@ -257,33 +202,37 @@ export default function NewDestinationPage() {
               {/* Country */}
               <div>
                 <label className="block text-sm font-medium text-secondary-700 mb-2">
-                  Country
+                  Davlat *
                 </label>
                 <select
                   value={formData.country}
                   onChange={(e) => handleChange('country', e.target.value)}
                   className="w-full px-4 py-3 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  required
                 >
-                  <option value="">Select country</option>
+                  <option value="">Davlatni tanlang</option>
                   <option value="Uzbekistan">Uzbekistan</option>
                   <option value="Kazakhstan">Kazakhstan</option>
                   <option value="Kyrgyzstan">Kyrgyzstan</option>
                   <option value="Tajikistan">Tajikistan</option>
                   <option value="Turkmenistan">Turkmenistan</option>
                 </select>
+                <p className="text-sm text-green-600 mt-1">
+                  ✓ Tanlagan davlatingiz menyuda avtomatik ko'rinadi
+                </p>
               </div>
 
               {/* Region */}
               <div>
                 <label className="block text-sm font-medium text-secondary-700 mb-2">
-                  Region
+                  Viloyat/Hudud
                 </label>
                 <input
                   type="text"
                   value={formData.region}
                   onChange={(e) => handleChange('region', e.target.value)}
                   className="w-full px-4 py-3 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  placeholder="e.g., Samarkand Region"
+                  placeholder="Samarkand viloyati"
                 />
               </div>
             </div>
@@ -292,15 +241,15 @@ export default function NewDestinationPage() {
               {/* Status */}
               <div>
                 <label className="block text-sm font-medium text-secondary-700 mb-2">
-                  Status
+                  Holat
                 </label>
                 <select
                   value={formData.status}
                   onChange={(e) => handleChange('status', e.target.value)}
                   className="w-full px-4 py-3 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="active">Faol</option>
+                  <option value="inactive">Nofaol</option>
                 </select>
               </div>
 
@@ -314,81 +263,32 @@ export default function NewDestinationPage() {
                   className="w-5 h-5 text-primary-500 border-secondary-300 rounded focus:ring-primary-500"
                 />
                 <label htmlFor="featured" className="text-sm font-medium text-secondary-700">
-                  Featured Destination (show on homepage)
+                  Bosh sahifada ko'rsatish
                 </label>
               </div>
             </div>
-          </div>
-
-          {/* Menu Settings */}
-          <div className="bg-white rounded-xl p-6 shadow-sm space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Navigation size={20} className="text-primary-500" />
-              <h2 className="text-lg font-semibold text-secondary-800">Menyu sozlamalari</h2>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                id="addToMenu"
-                checked={formData.addToMenu}
-                onChange={(e) => handleChange('addToMenu', e.target.checked)}
-                className="w-5 h-5 text-primary-500 border-secondary-300 rounded focus:ring-primary-500"
-              />
-              <label htmlFor="addToMenu" className="text-sm font-medium text-secondary-700">
-                Menyuga avtomatik qo'shish
-              </label>
-            </div>
-
-            {formData.addToMenu && (
-              <div>
-                <label className="block text-sm font-medium text-secondary-700 mb-2">
-                  Qaysi davlat menyusi ostida ko'rinsin?
-                </label>
-                <select
-                  value={formData.countryMenuId}
-                  onChange={(e) => handleChange('countryMenuId', e.target.value)}
-                  className="w-full px-4 py-3 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                >
-                  <option value="">-- Davlatni tanlang --</option>
-                  {countryMenus.map((menu) => (
-                    <option key={menu.id} value={menu.id}>
-                      {menu.name_en}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-sm text-secondary-500 mt-1">
-                  Masalan: "Uzbekistan" tanlasangiz → Destinations → Uzbekistan → [Yangi destination]
-                </p>
-                {countryMenus.length === 0 && (
-                  <p className="text-sm text-amber-600 mt-2">
-                    ⚠️ Avval Supabase'da menus jadvalini yarating va davlat menyularini qo'shing
-                  </p>
-                )}
-              </div>
-            )}
           </div>
 
           {/* Descriptions */}
           <div className="bg-white rounded-xl p-6 shadow-sm space-y-4">
-            <h2 className="text-lg font-semibold text-secondary-800">Descriptions</h2>
+            <h2 className="text-lg font-semibold text-secondary-800">Tavsiflar</h2>
 
             <div>
               <label className="block text-sm font-medium text-secondary-700 mb-2">
-                Description (English)
+                Tavsif (Inglizcha)
               </label>
               <textarea
                 value={formData.description_en}
                 onChange={(e) => handleChange('description_en', e.target.value)}
                 rows={4}
                 className="w-full px-4 py-3 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                placeholder="Describe this destination..."
+                placeholder="Bu manzil haqida qisqacha..."
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-secondary-700 mb-2">
-                Description (German)
+                Tavsif (Nemischa)
               </label>
               <textarea
                 value={formData.description_de}
@@ -400,7 +300,7 @@ export default function NewDestinationPage() {
 
             <div>
               <label className="block text-sm font-medium text-secondary-700 mb-2">
-                Description (Russian)
+                Tavsif (Ruscha)
               </label>
               <textarea
                 value={formData.description_ru}
@@ -413,7 +313,7 @@ export default function NewDestinationPage() {
 
           {/* Image */}
           <div className="bg-white rounded-xl p-6 shadow-sm space-y-4">
-            <h2 className="text-lg font-semibold text-secondary-800">Destination Image</h2>
+            <h2 className="text-lg font-semibold text-secondary-800">Rasm</h2>
 
             <input
               type="file"
@@ -449,12 +349,12 @@ export default function NewDestinationPage() {
                 {isUploading ? (
                   <div className="flex flex-col items-center">
                     <Loader2 size={40} className="animate-spin text-primary-500 mb-2" />
-                    <p className="text-secondary-500">Uploading...</p>
+                    <p className="text-secondary-500">Yuklanmoqda...</p>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center">
                     <ImageIcon size={40} className="text-secondary-400 mb-2" />
-                    <p className="text-secondary-600 font-medium">Click to upload image</p>
+                    <p className="text-secondary-600 font-medium">Rasm yuklash uchun bosing</p>
                     <p className="text-secondary-400 text-sm">JPG, PNG, WebP (max 5MB)</p>
                   </div>
                 )}
@@ -475,7 +375,7 @@ export default function NewDestinationPage() {
               href="/admin/destinations"
               className="px-6 py-3 border border-secondary-200 rounded-lg text-secondary-600 hover:bg-secondary-50 transition-colors"
             >
-              Cancel
+              Bekor qilish
             </Link>
             <button
               type="submit"
@@ -485,12 +385,12 @@ export default function NewDestinationPage() {
               {isSaving ? (
                 <>
                   <Loader2 size={20} className="animate-spin" />
-                  Creating...
+                  Saqlanmoqda...
                 </>
               ) : (
                 <>
                   <Save size={20} />
-                  Create Destination
+                  Saqlash
                 </>
               )}
             </button>

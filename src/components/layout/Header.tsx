@@ -7,29 +7,20 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Menu, X, ChevronDown, Globe, User } from 'lucide-react';
 import { locales, localeNames, type Locale } from '@/i18n';
 
-interface MenuItem {
+interface Destination {
   id: number;
+  slug: string;
   name_en: string;
   name_de: string;
   name_ru: string;
-  url: string;
-  parent_id: number | null;
-  location: string;
-  order_index: number;
-  open_in_new_tab: boolean;
+  country: string;
   status: string;
-  children?: MenuItem[];
 }
 
-// Fallback menus when API fails or no data
-const fallbackMenus: MenuItem[] = [
-  { id: 1, name_en: 'Home', name_de: 'Startseite', name_ru: 'Главная', url: '/', parent_id: null, location: 'header', order_index: 0, open_in_new_tab: false, status: 'active', children: [] },
-  { id: 2, name_en: 'Destinations', name_de: 'Reiseziele', name_ru: 'Направления', url: '/destinations', parent_id: null, location: 'header', order_index: 1, open_in_new_tab: false, status: 'active', children: [] },
-  { id: 3, name_en: 'Tours', name_de: 'Reisen', name_ru: 'Туры', url: '/tours', parent_id: null, location: 'header', order_index: 2, open_in_new_tab: false, status: 'active', children: [] },
-  { id: 4, name_en: 'Blog', name_de: 'Blog', name_ru: 'Блог', url: '/blog', parent_id: null, location: 'header', order_index: 3, open_in_new_tab: false, status: 'active', children: [] },
-  { id: 5, name_en: 'About', name_de: 'Über uns', name_ru: 'О нас', url: '/about', parent_id: null, location: 'header', order_index: 4, open_in_new_tab: false, status: 'active', children: [] },
-  { id: 6, name_en: 'Contact', name_de: 'Kontakt', name_ru: 'Контакты', url: '/contact', parent_id: null, location: 'header', order_index: 5, open_in_new_tab: false, status: 'active', children: [] },
-];
+interface CountryGroup {
+  country: string;
+  destinations: Destination[];
+}
 
 export default function Header() {
   const t = useTranslations();
@@ -38,28 +29,44 @@ export default function Header() {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
-  const [openDropdown, setOpenDropdown] = useState<number | null>(null);
-  const [openSubmenu, setOpenSubmenu] = useState<number | null>(null);
-  const [menus, setMenus] = useState<MenuItem[]>(fallbackMenus);
+  const [isDestOpen, setIsDestOpen] = useState(false);
+  const [openCountry, setOpenCountry] = useState<string | null>(null);
+  const [countryGroups, setCountryGroups] = useState<CountryGroup[]>([]);
 
-  // Fetch menus from API
+  // Fetch destinations and group by country
   useEffect(() => {
-    const fetchMenus = async () => {
+    const fetchDestinations = async () => {
       try {
-        const response = await fetch('/api/menus?location=header&status=active');
+        const response = await fetch('/api/destinations?status=active');
         if (response.ok) {
-          const data = await response.json();
-          if (data && data.length > 0) {
-            setMenus(data);
-          }
+          const data: Destination[] = await response.json();
+
+          // Group destinations by country
+          const grouped: { [key: string]: Destination[] } = {};
+          data.forEach((dest) => {
+            const country = dest.country || 'Other';
+            if (!grouped[country]) {
+              grouped[country] = [];
+            }
+            grouped[country].push(dest);
+          });
+
+          // Convert to array and sort
+          const groups: CountryGroup[] = Object.entries(grouped)
+            .map(([country, destinations]) => ({
+              country,
+              destinations: destinations.sort((a, b) => a.name_en.localeCompare(b.name_en))
+            }))
+            .sort((a, b) => a.country.localeCompare(b.country));
+
+          setCountryGroups(groups);
         }
       } catch (error) {
-        console.error('Error fetching menus:', error);
-        // Keep fallback data on error
+        console.error('Error fetching destinations:', error);
       }
     };
 
-    fetchMenus();
+    fetchDestinations();
   }, []);
 
   const switchLocale = (newLocale: Locale) => {
@@ -69,22 +76,9 @@ export default function Header() {
   };
 
   // Get localized name
-  const getMenuName = (item: MenuItem) => {
-    const key = `name_${locale}` as keyof MenuItem;
-    return (item[key] as string) || item.name_en;
-  };
-
-  // Build full URL with locale
-  const getFullUrl = (url: string) => {
-    if (!url) return `/${locale}`;
-    if (url.startsWith('http')) return url;
-    if (url.startsWith('/')) return `/${locale}${url}`;
-    return `/${locale}/${url}`;
-  };
-
-  // Toggle dropdown
-  const toggleDropdown = (id: number) => {
-    setOpenDropdown(openDropdown === id ? null : id);
+  const getDestName = (dest: Destination) => {
+    const key = `name_${locale}` as keyof Destination;
+    return (dest[key] as string) || dest.name_en;
   };
 
   return (
@@ -109,7 +103,7 @@ export default function Header() {
                 <ChevronDown size={14} />
               </button>
               {isLangOpen && (
-                <div className="absolute right-0 mt-2 bg-white rounded-lg shadow-lg py-2 min-w-[120px]">
+                <div className="absolute right-0 mt-2 bg-white rounded-lg shadow-lg py-2 min-w-[120px] z-50">
                   {locales.map((loc) => (
                     <button
                       key={loc}
@@ -149,98 +143,77 @@ export default function Header() {
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-8">
-            {menus.map((item) => {
-              const hasChildren = item.children && item.children.length > 0;
-              const isOpen = openDropdown === item.id;
+            <Link href={`/${locale}`} className="nav-link">
+              {t('common.home')}
+            </Link>
 
-              if (hasChildren) {
-                return (
-                  <div
-                    key={item.id}
-                    className="relative"
-                    onMouseEnter={() => setOpenDropdown(item.id)}
-                    onMouseLeave={() => { setOpenDropdown(null); setOpenSubmenu(null); }}
-                  >
-                    <Link
-                      href={getFullUrl(item.url)}
-                      className="nav-link flex items-center gap-1"
-                    >
-                      {getMenuName(item)}
-                      <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                    </Link>
-                    {isOpen && (
-                      <div className="absolute left-0 top-full pt-2">
-                        <div className="bg-white rounded-lg shadow-lg py-2 min-w-[200px] border border-secondary-100">
-                          {item.children!.map((child) => {
-                            const hasSubChildren = child.children && child.children.length > 0;
-                            const isSubOpen = openSubmenu === child.id;
+            {/* Destinations Dropdown - Auto-generated from database */}
+            <div
+              className="relative"
+              onMouseEnter={() => setIsDestOpen(true)}
+              onMouseLeave={() => { setIsDestOpen(false); setOpenCountry(null); }}
+            >
+              <Link
+                href={`/${locale}/destinations`}
+                className="nav-link flex items-center gap-1"
+              >
+                {t('navigation.destinations')}
+                <ChevronDown size={16} className={`transition-transform ${isDestOpen ? 'rotate-180' : ''}`} />
+              </Link>
 
-                            if (hasSubChildren) {
-                              return (
-                                <div
-                                  key={child.id}
-                                  className="relative"
-                                  onMouseEnter={() => setOpenSubmenu(child.id)}
-                                  onMouseLeave={() => setOpenSubmenu(null)}
-                                >
-                                  <div className="flex items-center justify-between px-4 py-2 text-secondary-700 hover:bg-primary-50 hover:text-primary-500 cursor-pointer transition-colors">
-                                    <span>{getMenuName(child)}</span>
-                                    <ChevronDown size={14} className="-rotate-90" />
-                                  </div>
-                                  {isSubOpen && (
-                                    <div className="absolute left-full top-0 ml-1">
-                                      <div className="bg-white rounded-lg shadow-lg py-2 min-w-[180px] border border-secondary-100">
-                                        {child.children!.map((subChild) => (
-                                          <Link
-                                            key={subChild.id}
-                                            href={getFullUrl(subChild.url)}
-                                            target={subChild.open_in_new_tab ? '_blank' : undefined}
-                                            rel={subChild.open_in_new_tab ? 'noopener noreferrer' : undefined}
-                                            className="block px-4 py-2 text-secondary-700 hover:bg-primary-50 hover:text-primary-500 transition-colors"
-                                            onClick={() => { setOpenDropdown(null); setOpenSubmenu(null); }}
-                                          >
-                                            {getMenuName(subChild)}
-                                          </Link>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            }
-
-                            return (
-                              <Link
-                                key={child.id}
-                                href={getFullUrl(child.url)}
-                                target={child.open_in_new_tab ? '_blank' : undefined}
-                                rel={child.open_in_new_tab ? 'noopener noreferrer' : undefined}
-                                className="block px-4 py-2 text-secondary-700 hover:bg-primary-50 hover:text-primary-500 transition-colors"
-                                onClick={() => setOpenDropdown(null)}
-                              >
-                                {getMenuName(child)}
-                              </Link>
-                            );
-                          })}
+              {isDestOpen && countryGroups.length > 0 && (
+                <div className="absolute left-0 top-full pt-2">
+                  <div className="bg-white rounded-lg shadow-lg py-2 min-w-[200px] border border-secondary-100">
+                    {countryGroups.map((group) => (
+                      <div
+                        key={group.country}
+                        className="relative"
+                        onMouseEnter={() => setOpenCountry(group.country)}
+                        onMouseLeave={() => setOpenCountry(null)}
+                      >
+                        <div className="flex items-center justify-between px-4 py-2 text-secondary-700 hover:bg-primary-50 hover:text-primary-500 cursor-pointer transition-colors">
+                          <span>{group.country}</span>
+                          {group.destinations.length > 0 && (
+                            <ChevronDown size={14} className="-rotate-90" />
+                          )}
                         </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              }
 
-              return (
-                <Link
-                  key={item.id}
-                  href={getFullUrl(item.url)}
-                  target={item.open_in_new_tab ? '_blank' : undefined}
-                  rel={item.open_in_new_tab ? 'noopener noreferrer' : undefined}
-                  className="nav-link"
-                >
-                  {getMenuName(item)}
-                </Link>
-              );
-            })}
+                        {/* Sub-dropdown for cities/regions */}
+                        {openCountry === group.country && group.destinations.length > 0 && (
+                          <div className="absolute left-full top-0 ml-1">
+                            <div className="bg-white rounded-lg shadow-lg py-2 min-w-[180px] border border-secondary-100">
+                              {group.destinations.map((dest) => (
+                                <Link
+                                  key={dest.id}
+                                  href={`/${locale}/tours?destination=${dest.slug}`}
+                                  className="block px-4 py-2 text-secondary-700 hover:bg-primary-50 hover:text-primary-500 transition-colors"
+                                  onClick={() => { setIsDestOpen(false); setOpenCountry(null); }}
+                                >
+                                  {getDestName(dest)}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Link href={`/${locale}/tours`} className="nav-link">
+              {t('common.tours')}
+            </Link>
+            <Link href={`/${locale}/blog`} className="nav-link">
+              {t('common.blog')}
+            </Link>
+            <Link href={`/${locale}/about`} className="nav-link">
+              {t('common.about')}
+            </Link>
+            <Link href={`/${locale}/contact`} className="nav-link">
+              {t('common.contact')}
+            </Link>
           </div>
 
           {/* CTA Button */}
@@ -263,44 +236,46 @@ export default function Header() {
         {isMenuOpen && (
           <div className="lg:hidden mt-4 pb-4 border-t pt-4">
             <div className="flex flex-col gap-4">
-              {menus.map((item) => {
-                const hasChildren = item.children && item.children.length > 0;
+              <Link href={`/${locale}`} className="nav-link" onClick={() => setIsMenuOpen(false)}>
+                {t('common.home')}
+              </Link>
 
-                if (hasChildren) {
-                  return (
-                    <div key={item.id}>
-                      <p className="text-sm font-medium text-secondary-500 mb-2">{getMenuName(item)}</p>
-                      <div className="pl-4 border-l-2 border-primary-200">
-                        {item.children!.map((child) => (
-                          <Link
-                            key={child.id}
-                            href={getFullUrl(child.url)}
-                            target={child.open_in_new_tab ? '_blank' : undefined}
-                            rel={child.open_in_new_tab ? 'noopener noreferrer' : undefined}
-                            className="block py-1 text-secondary-600 hover:text-primary-500"
-                            onClick={() => setIsMenuOpen(false)}
-                          >
-                            {getMenuName(child)}
-                          </Link>
-                        ))}
-                      </div>
+              {/* Mobile Destinations - Grouped by Country */}
+              <div>
+                <p className="text-sm font-medium text-secondary-500 mb-2">{t('navigation.destinations')}</p>
+                {countryGroups.map((group) => (
+                  <div key={group.country} className="mb-3">
+                    <p className="text-xs font-semibold text-primary-500 uppercase tracking-wide mb-1 pl-4">
+                      {group.country}
+                    </p>
+                    <div className="pl-4 border-l-2 border-primary-200">
+                      {group.destinations.map((dest) => (
+                        <Link
+                          key={dest.id}
+                          href={`/${locale}/tours?destination=${dest.slug}`}
+                          className="block py-1 text-secondary-600 hover:text-primary-500"
+                          onClick={() => setIsMenuOpen(false)}
+                        >
+                          {getDestName(dest)}
+                        </Link>
+                      ))}
                     </div>
-                  );
-                }
+                  </div>
+                ))}
+              </div>
 
-                return (
-                  <Link
-                    key={item.id}
-                    href={getFullUrl(item.url)}
-                    target={item.open_in_new_tab ? '_blank' : undefined}
-                    rel={item.open_in_new_tab ? 'noopener noreferrer' : undefined}
-                    className="nav-link"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {getMenuName(item)}
-                  </Link>
-                );
-              })}
+              <Link href={`/${locale}/tours`} className="nav-link" onClick={() => setIsMenuOpen(false)}>
+                {t('common.tours')}
+              </Link>
+              <Link href={`/${locale}/blog`} className="nav-link" onClick={() => setIsMenuOpen(false)}>
+                {t('common.blog')}
+              </Link>
+              <Link href={`/${locale}/about`} className="nav-link" onClick={() => setIsMenuOpen(false)}>
+                {t('common.about')}
+              </Link>
+              <Link href={`/${locale}/contact`} className="nav-link" onClick={() => setIsMenuOpen(false)}>
+                {t('common.contact')}
+              </Link>
               <Link href={`/${locale}/tours`} className="btn-primary text-center" onClick={() => setIsMenuOpen(false)}>
                 {t('common.booking')}
               </Link>
