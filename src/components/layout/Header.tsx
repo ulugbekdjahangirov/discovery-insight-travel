@@ -154,28 +154,34 @@ export default function Header() {
 
               if (hasChildren) {
                 return (
-                  <div key={item.id} className="relative">
-                    <button
-                      onClick={() => toggleDropdown(item.id)}
+                  <div
+                    key={item.id}
+                    className="relative"
+                    onMouseEnter={() => setOpenDropdown(item.id)}
+                    onMouseLeave={() => setOpenDropdown(null)}
+                  >
+                    <Link
+                      href={getFullUrl(item.url)}
                       className="nav-link flex items-center gap-1"
                     >
                       {getMenuName(item)}
-                      <ChevronDown size={16} />
-                    </button>
+                      <ChevronDown size={16} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                    </Link>
                     {isOpen && (
-                      <div className="absolute left-0 mt-2 bg-white rounded-lg shadow-lg py-2 min-w-[180px]">
-                        {item.children!.map((child) => (
-                          <Link
-                            key={child.id}
-                            href={getFullUrl(child.url)}
-                            target={child.open_in_new_tab ? '_blank' : undefined}
-                            rel={child.open_in_new_tab ? 'noopener noreferrer' : undefined}
-                            className="block px-4 py-2 text-secondary-700 hover:bg-primary-50 hover:text-primary-500"
-                            onClick={() => setOpenDropdown(null)}
-                          >
-                            {getMenuName(child)}
-                          </Link>
-                        ))}
+                      <div className="absolute left-0 top-full pt-2">
+                        <div className="bg-white rounded-lg shadow-lg py-2 min-w-[180px] border border-secondary-100">
+                          {item.children!.map((child) => (
+                            <Link
+                              key={child.id}
+                              href={getFullUrl(child.url)}
+                              target={child.open_in_new_tab ? '_blank' : undefined}
+                              rel={child.open_in_new_tab ? 'noopener noreferrer' : undefined}
+                              className="block px-4 py-2 text-secondary-700 hover:bg-primary-50 hover:text-primary-500 transition-colors"
+                            >
+                              {getMenuName(child)}
+                            </Link>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
