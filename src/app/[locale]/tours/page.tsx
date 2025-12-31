@@ -1,120 +1,32 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Filter, Grid, List, SlidersHorizontal } from 'lucide-react';
+import { Grid, List, SlidersHorizontal, Loader2 } from 'lucide-react';
 import TourCard from '@/components/tours/TourCard';
 
-const allTours = [
-  {
-    id: 1,
-    slug: 'classic-uzbekistan',
-    image: 'https://images.unsplash.com/photo-1596484552834-6a58f850e0a1?auto=format&fit=crop&w=800&q=80',
-    destination: 'Uzbekistan',
-    title: { en: 'Classic Uzbekistan Tour', de: 'Klassische Usbekistan Reise', ru: 'Классический тур по Узбекистану' },
-    duration: 8,
-    price: 1299,
-    rating: 4.9,
-    reviews: 124,
-    isBestseller: true,
-    type: 'cultural',
-  },
-  {
-    id: 2,
-    slug: 'silk-road-adventure',
-    image: 'https://images.unsplash.com/photo-1565967511849-76a60a516170?auto=format&fit=crop&w=800&q=80',
-    destination: 'Central Asia',
-    title: { en: 'Silk Road Adventure', de: 'Seidenstraße Abenteuer', ru: 'Приключение на Шелковом пути' },
-    duration: 14,
-    price: 2499,
-    rating: 4.8,
-    reviews: 89,
-    isBestseller: true,
-    type: 'adventure',
-  },
-  {
-    id: 3,
-    slug: 'samarkand-bukhara',
-    image: 'https://images.unsplash.com/photo-1580742314666-5bf5b15c94c0?auto=format&fit=crop&w=800&q=80',
-    destination: 'Uzbekistan',
-    title: { en: 'Samarkand & Bukhara Explorer', de: 'Samarkand & Buchara Entdecker', ru: 'Исследование Самарканда и Бухары' },
-    duration: 5,
-    price: 799,
-    rating: 4.7,
-    reviews: 156,
-    isBestseller: false,
-    type: 'historical',
-  },
-  {
-    id: 4,
-    slug: 'kazakhstan-nomad',
-    image: 'https://images.unsplash.com/photo-1590595906931-81120976ec5d?auto=format&fit=crop&w=800&q=80',
-    destination: 'Kazakhstan',
-    title: { en: 'Kazakhstan Nomad Experience', de: 'Kasachstan Nomaden Erlebnis', ru: 'Кочевой опыт Казахстана' },
-    duration: 10,
-    price: 1899,
-    rating: 4.6,
-    reviews: 67,
-    isBestseller: false,
-    type: 'adventure',
-  },
-  {
-    id: 5,
-    slug: 'kyrgyzstan-mountains',
-    image: 'https://images.unsplash.com/photo-1530521954074-e64f6810b32d?auto=format&fit=crop&w=800&q=80',
-    destination: 'Kyrgyzstan',
-    title: { en: 'Kyrgyzstan Mountain Trek', de: 'Kirgistan Bergtrekking', ru: 'Горный поход по Кыргызстану' },
-    duration: 12,
-    price: 1699,
-    rating: 4.8,
-    reviews: 45,
-    isBestseller: false,
-    type: 'adventure',
-  },
-  {
-    id: 6,
-    slug: 'tajikistan-pamir',
-    image: 'https://images.unsplash.com/photo-1625736300986-37847903b2e5?auto=format&fit=crop&w=800&q=80',
-    destination: 'Tajikistan',
-    title: { en: 'Pamir Highway Journey', de: 'Pamir Highway Reise', ru: 'Путешествие по Памирскому тракту' },
-    duration: 9,
-    price: 1599,
-    rating: 4.9,
-    reviews: 38,
-    isBestseller: false,
-    type: 'adventure',
-  },
-  {
-    id: 7,
-    slug: 'uzbekistan-photo-tour',
-    image: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=800&q=80',
-    destination: 'Uzbekistan',
-    title: { en: 'Uzbekistan Photo Tour', de: 'Usbekistan Foto-Tour', ru: 'Фототур по Узбекистану' },
-    duration: 7,
-    price: 1199,
-    rating: 4.7,
-    reviews: 52,
-    isBestseller: false,
-    type: 'cultural',
-  },
-  {
-    id: 8,
-    slug: 'central-asia-complete',
-    image: 'https://images.unsplash.com/photo-1622547748225-3fc4abd2cca0?auto=format&fit=crop&w=800&q=80',
-    destination: 'Central Asia',
-    title: { en: 'Complete Central Asia', de: 'Komplettes Zentralasien', ru: 'Полная Центральная Азия' },
-    duration: 21,
-    price: 3999,
-    rating: 4.9,
-    reviews: 29,
-    isBestseller: true,
-    type: 'cultural',
-  },
-];
+interface Tour {
+  id: number;
+  slug: string;
+  main_image: string;
+  destination: string;
+  title_en: string;
+  title_de: string;
+  title_ru: string;
+  duration: number;
+  price: number;
+  rating: number;
+  reviews: number;
+  is_bestseller: boolean;
+  tour_type: string;
+  status: string;
+}
 
 export default function ToursPage() {
   const t = useTranslations();
   const locale = useLocale();
+  const [tours, setTours] = useState<Tour[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
@@ -125,7 +37,45 @@ export default function ToursPage() {
   });
   const [sortBy, setSortBy] = useState('popularity');
 
-  const filteredTours = allTours.filter((tour) => {
+  // Fetch tours from API
+  useEffect(() => {
+    const fetchTours = async () => {
+      try {
+        const response = await fetch('/api/tours?status=active');
+        if (response.ok) {
+          const data = await response.json();
+          setTours(data);
+        }
+      } catch (error) {
+        console.error('Error fetching tours:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTours();
+  }, []);
+
+  // Transform tour data for TourCard component
+  const transformedTours = tours.map((tour) => ({
+    id: tour.id,
+    slug: tour.slug,
+    image: tour.main_image || 'https://images.unsplash.com/photo-1596484552834-6a58f850e0a1?auto=format&fit=crop&w=800&q=80',
+    destination: tour.destination,
+    title: {
+      en: tour.title_en,
+      de: tour.title_de || tour.title_en,
+      ru: tour.title_ru || tour.title_en,
+    },
+    duration: tour.duration,
+    price: tour.price,
+    rating: tour.rating || 0,
+    reviews: tour.reviews || 0,
+    isBestseller: tour.is_bestseller,
+    type: tour.tour_type,
+  }));
+
+  const filteredTours = transformedTours.filter((tour) => {
     if (filters.destination && tour.destination.toLowerCase() !== filters.destination.toLowerCase()) {
       return false;
     }
@@ -147,6 +97,21 @@ export default function ToursPage() {
         return b.reviews - a.reviews;
     }
   });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-secondary-50">
+        <div className="bg-primary-500 py-16 md:py-24">
+          <div className="container-custom text-center text-white">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">{t('tours.title')}</h1>
+          </div>
+        </div>
+        <div className="flex items-center justify-center py-20">
+          <Loader2 size={48} className="animate-spin text-primary-500" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-secondary-50">
@@ -299,9 +264,9 @@ export default function ToursPage() {
         {sortedTours.length === 0 && (
           <div className="text-center py-16">
             <p className="text-secondary-500 text-lg">
-              {locale === 'en' && 'No tours found matching your criteria'}
-              {locale === 'de' && 'Keine Reisen gefunden, die Ihren Kriterien entsprechen'}
-              {locale === 'ru' && 'Туры, соответствующие вашим критериям, не найдены'}
+              {locale === 'en' && 'No tours found. Create your first tour in the admin panel!'}
+              {locale === 'de' && 'Keine Reisen gefunden. Erstellen Sie Ihre erste Reise im Admin-Panel!'}
+              {locale === 'ru' && 'Туры не найдены. Создайте свой первый тур в админ-панели!'}
             </p>
           </div>
         )}

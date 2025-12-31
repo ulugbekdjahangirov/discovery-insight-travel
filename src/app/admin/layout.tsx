@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
+  MapPin,
   Map,
   Calendar,
   FileText,
@@ -19,6 +20,7 @@ import {
 
 const sidebarLinks = [
   { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/admin/destinations', icon: MapPin, label: 'Destinations' },
   { href: '/admin/tours', icon: Map, label: 'Tours' },
   { href: '/admin/bookings', icon: Calendar, label: 'Bookings' },
   { href: '/admin/blog', icon: FileText, label: 'Blog Posts' },

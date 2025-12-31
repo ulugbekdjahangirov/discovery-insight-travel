@@ -1,20 +1,60 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
 import { Menu, X, ChevronDown, Globe, User } from 'lucide-react';
 import { locales, localeNames, type Locale } from '@/i18n';
 
+interface Destination {
+  id: number;
+  slug: string;
+  name_en: string;
+  name_de: string;
+  name_ru: string;
+  status: string;
+}
+
+// Fallback destinations when API fails or no data
+const fallbackDestinations = [
+  { id: 1, slug: 'uzbekistan', name_en: 'Uzbekistan', name_de: 'Usbekistan', name_ru: 'Узбекистан', status: 'active' },
+  { id: 2, slug: 'kazakhstan', name_en: 'Kazakhstan', name_de: 'Kasachstan', name_ru: 'Казахстан', status: 'active' },
+  { id: 3, slug: 'kyrgyzstan', name_en: 'Kyrgyzstan', name_de: 'Kirgisistan', name_ru: 'Кыргызстан', status: 'active' },
+  { id: 4, slug: 'tajikistan', name_en: 'Tajikistan', name_de: 'Tadschikistan', name_ru: 'Таджикистан', status: 'active' },
+  { id: 5, slug: 'turkmenistan', name_en: 'Turkmenistan', name_de: 'Turkmenistan', name_ru: 'Туркменистан', status: 'active' },
+  { id: 6, slug: 'silk-road', name_en: 'Silk Road', name_de: 'Seidenstraße', name_ru: 'Шелковый путь', status: 'active' },
+];
+
 export default function Header() {
   const t = useTranslations();
-  const locale = useLocale();
+  const locale = useLocale() as 'en' | 'de' | 'ru';
   const pathname = usePathname();
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLangOpen, setIsLangOpen] = useState(false);
   const [isDestOpen, setIsDestOpen] = useState(false);
+  const [destinations, setDestinations] = useState<Destination[]>(fallbackDestinations);
+
+  // Fetch destinations from API
+  useEffect(() => {
+    const fetchDestinations = async () => {
+      try {
+        const response = await fetch('/api/destinations?status=active');
+        if (response.ok) {
+          const data = await response.json();
+          if (data && data.length > 0) {
+            setDestinations(data);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching destinations:', error);
+        // Keep fallback data on error
+      }
+    };
+
+    fetchDestinations();
+  }, []);
 
   const switchLocale = (newLocale: Locale) => {
     const newPath = pathname.replace(`/${locale}`, `/${newLocale}`);
@@ -22,14 +62,10 @@ export default function Header() {
     setIsLangOpen(false);
   };
 
-  const destinations = [
-    { key: 'uzbekistan', href: '/tours?destination=uzbekistan' },
-    { key: 'kazakhstan', href: '/tours?destination=kazakhstan' },
-    { key: 'kyrgyzstan', href: '/tours?destination=kyrgyzstan' },
-    { key: 'tajikistan', href: '/tours?destination=tajikistan' },
-    { key: 'turkmenistan', href: '/tours?destination=turkmenistan' },
-    { key: 'silkRoad', href: '/tours?destination=silk-road' },
-  ];
+  // Get localized name
+  const getName = (dest: Destination) => {
+    return dest[`name_${locale}`] || dest.name_en;
+  };
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
@@ -110,12 +146,12 @@ export default function Header() {
                 <div className="absolute left-0 mt-2 bg-white rounded-lg shadow-lg py-2 min-w-[180px]">
                   {destinations.map((dest) => (
                     <Link
-                      key={dest.key}
-                      href={`/${locale}${dest.href}`}
+                      key={dest.id}
+                      href={`/${locale}/tours?destination=${dest.slug}`}
                       className="block px-4 py-2 text-secondary-700 hover:bg-primary-50 hover:text-primary-500"
                       onClick={() => setIsDestOpen(false)}
                     >
-                      {t(`navigation.${dest.key}`)}
+                      {getName(dest)}
                     </Link>
                   ))}
                 </div>
@@ -159,6 +195,22 @@ export default function Header() {
               <Link href={`/${locale}`} className="nav-link" onClick={() => setIsMenuOpen(false)}>
                 {t('common.home')}
               </Link>
+
+              {/* Mobile Destinations */}
+              <div className="pl-4 border-l-2 border-primary-200">
+                <p className="text-sm font-medium text-secondary-500 mb-2">{t('navigation.destinations')}</p>
+                {destinations.map((dest) => (
+                  <Link
+                    key={dest.id}
+                    href={`/${locale}/tours?destination=${dest.slug}`}
+                    className="block py-1 text-secondary-600 hover:text-primary-500"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    {getName(dest)}
+                  </Link>
+                ))}
+              </div>
+
               <Link href={`/${locale}/tours`} className="nav-link" onClick={() => setIsMenuOpen(false)}>
                 {t('common.tours')}
               </Link>
