@@ -16,10 +16,12 @@ import {
   LogOut,
   Bell,
   Search,
+  Navigation,
 } from 'lucide-react';
 
 const sidebarLinks = [
   { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/admin/menus', icon: Navigation, label: 'Menus' },
   { href: '/admin/destinations', icon: MapPin, label: 'Destinations' },
   { href: '/admin/tours', icon: Map, label: 'Tours' },
   { href: '/admin/bookings', icon: Calendar, label: 'Bookings' },

@@ -168,6 +168,41 @@ CREATE TABLE IF NOT EXISTS newsletter_subscribers (
 );
 
 -- =====================================================
+-- MENUS TABLE (Hierarchical navigation menus)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS menus (
+    id SERIAL PRIMARY KEY,
+
+    -- Multilingual names
+    name_en VARCHAR(255) NOT NULL,
+    name_de VARCHAR(255) DEFAULT '',
+    name_ru VARCHAR(255) DEFAULT '',
+
+    -- URL/Link
+    url VARCHAR(500) DEFAULT '',
+
+    -- Hierarchy (null = top-level menu item)
+    parent_id INTEGER REFERENCES menus(id) ON DELETE CASCADE,
+
+    -- Menu location (header, footer, etc.)
+    location VARCHAR(50) DEFAULT 'header' CHECK (location IN ('header', 'footer', 'sidebar')),
+
+    -- Order/sorting
+    order_index INTEGER DEFAULT 0,
+
+    -- Options
+    open_in_new_tab BOOLEAN DEFAULT FALSE,
+    icon VARCHAR(100) DEFAULT '',
+
+    -- Status
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =====================================================
 -- INDEXES FOR BETTER PERFORMANCE
 -- =====================================================
 CREATE INDEX IF NOT EXISTS idx_tours_status ON tours(status);
@@ -180,6 +215,9 @@ CREATE INDEX IF NOT EXISTS idx_itineraries_tour_id ON itineraries(tour_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_tour_id ON bookings(tour_id);
 CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
 CREATE INDEX IF NOT EXISTS idx_bookings_email ON bookings(email);
+CREATE INDEX IF NOT EXISTS idx_menus_location ON menus(location);
+CREATE INDEX IF NOT EXISTS idx_menus_parent_id ON menus(parent_id);
+CREATE INDEX IF NOT EXISTS idx_menus_status ON menus(status);
 
 -- =====================================================
 -- FUNCTION TO AUTO-UPDATE updated_at
@@ -211,6 +249,12 @@ CREATE TRIGGER update_destinations_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_menus_updated_at ON menus;
+CREATE TRIGGER update_menus_updated_at
+    BEFORE UPDATE ON menus
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
 -- =====================================================
 -- ROW LEVEL SECURITY (RLS)
 -- =====================================================
@@ -221,6 +265,7 @@ ALTER TABLE itineraries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bookings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contact_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE newsletter_subscribers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE menus ENABLE ROW LEVEL SECURITY;
 
 -- Public read access for tours
 CREATE POLICY "Tours are viewable by everyone" ON tours
@@ -270,6 +315,19 @@ CREATE POLICY "Enable all for contact_messages" ON contact_messages
 
 CREATE POLICY "Enable all for newsletter" ON newsletter_subscribers
     FOR ALL USING (true);
+
+-- Menus policies
+CREATE POLICY "Menus are viewable by everyone" ON menus
+    FOR SELECT USING (true);
+
+CREATE POLICY "Enable insert for menus" ON menus
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Enable update for menus" ON menus
+    FOR UPDATE USING (true);
+
+CREATE POLICY "Enable delete for menus" ON menus
+    FOR DELETE USING (true);
 
 -- =====================================================
 -- SAMPLE DATA (Optional - run separately if needed)
