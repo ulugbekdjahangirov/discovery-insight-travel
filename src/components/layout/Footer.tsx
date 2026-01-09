@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useLocale, useTranslations } from 'next-intl';
 import { Facebook, Instagram, Twitter, Youtube, Mail, Phone, MapPin, Send } from 'lucide-react';
 
@@ -30,10 +31,14 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Company Info */}
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">D</span>
-              </div>
+            <div className="flex items-center gap-3 mb-4">
+              <Image
+                src="/images/logo.png"
+                alt="Discovery Insight Travel"
+                width={50}
+                height={50}
+                className="h-12 w-auto"
+              />
               <div>
                 <span className="font-bold text-xl">Discovery</span>
                 <span className="font-bold text-xl text-primary-500"> Insight</span>
@@ -101,7 +106,7 @@ export default function Footer() {
               </li>
               <li className="flex items-center gap-2 text-secondary-300">
                 <Phone size={18} className="text-primary-500" />
-                <span>+998 90 123 45 67</span>
+                <span>+998 93 348 42 08</span>
               </li>
               <li className="flex items-center gap-2 text-secondary-300">
                 <Mail size={18} className="text-primary-500" />

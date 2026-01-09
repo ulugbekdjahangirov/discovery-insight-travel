@@ -272,11 +272,12 @@ export default function EditDestinationPage() {
                   className="w-full px-4 py-3 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 >
                   <option value="">Select country</option>
-                  <option value="Uzbekistan">Uzbekistan</option>
-                  <option value="Kazakhstan">Kazakhstan</option>
-                  <option value="Kyrgyzstan">Kyrgyzstan</option>
-                  <option value="Tajikistan">Tajikistan</option>
-                  <option value="Turkmenistan">Turkmenistan</option>
+                  <option value="uzbekistan">Uzbekistan</option>
+                  <option value="kazakhstan">Kazakhstan</option>
+                  <option value="kyrgyzstan">Kyrgyzstan</option>
+                  <option value="tajikistan">Tajikistan</option>
+                  <option value="turkmenistan">Turkmenistan</option>
+                  <option value="silk-road">Silk Road</option>
                 </select>
               </div>
 

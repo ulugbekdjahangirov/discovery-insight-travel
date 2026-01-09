@@ -90,3 +90,89 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #d65a24;
 }
+
+/* Print Styles */
+@media print {
+  /* Hide all page elements */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only booking confirmation */
+  #booking-confirmation,
+  #booking-confirmation * {
+    visibility: visible;
+  }
+
+  /* Position booking confirmation for print */
+  #booking-confirmation {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Reset background */
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Preserve colors in print */
+  .bg-gradient-to-r,
+  .bg-primary-500,
+  .bg-primary-600,
+  .bg-primary-50,
+  .bg-secondary-50,
+  .text-primary-500,
+  .text-primary-600,
+  .text-white {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Page setup - A4 */
+  @page {
+    size: A4 portrait;
+    margin: 0.5cm;
+  }
+
+  /* Hide buttons */
+  .print\\:hidden,
+  button,
+  a.btn-primary,
+  a.btn-secondary {
+    display: none !important;
+  }
+
+  /* Avoid page breaks inside elements */
+  .bg-secondary-50,
+  .rounded-xl {
+    break-inside: avoid;
+  }
+
+  /* Compact spacing for A4 */
+  #booking-confirmation .p-6 {
+    padding: 1rem !important;
+  }
+
+  #booking-confirmation .p-8 {
+    padding: 1.25rem !important;
+  }
+
+  #booking-confirmation .mb-8 {
+    margin-bottom: 1rem !important;
+  }
+
+  #booking-confirmation .mb-6 {
+    margin-bottom: 0.75rem !important;
+  }
+
+  #booking-confirmation .gap-6 {
+    gap: 1rem !important;
+  }
+}

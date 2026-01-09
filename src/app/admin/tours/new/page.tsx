@@ -19,47 +19,95 @@ import {
   Calendar,
   Upload,
   X,
-  Loader2
+  Loader2,
+  HelpCircle,
+  Search,
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
+
+interface TourCategory {
+  id: number;
+  slug: string;
+  name_en: string;
+  name_de: string;
+  name_ru: string;
+}
 
 interface TourFormData {
   title: { en: string; de: string; ru: string };
   slug: string;
   destination: string;
+  categoryId: number | null;
   duration: number;
   price: number;
   type: 'cultural' | 'adventure' | 'historical' | 'group' | 'private';
   status: 'active' | 'inactive' | 'draft';
   groupSize: string;
   isBestseller: boolean;
+  enablePrivateTour: boolean;
+  enableGroupTour: boolean;
+  privateTourPrices: { personsFrom: number; personsTo: number; price: number }[];
+  groupTourPrices: { personsFrom: number; personsTo: number; price: number }[];
   description: { en: string; de: string; ru: string };
+  highlights: { en: string; de: string; ru: string };
   included: { en: string[]; de: string[]; ru: string[] };
   notIncluded: { en: string[]; de: string[]; ru: string[] };
   itinerary: {
     day: number;
     title: { en: string; de: string; ru: string };
     description: { en: string; de: string; ru: string };
+    image: string;
   }[];
   mainImage: string;
-  galleryImages: string[];
+  mainImageAlt: string;
+  galleryImages: { url: string; alt: string }[];
+  routeImages: { url: string; alt: string }[];
+  faq: {
+    question: { en: string; de: string; ru: string };
+    answer: { en: string; de: string; ru: string };
+  }[];
+  seo: {
+    metaTitle: { en: string; de: string; ru: string };
+    metaDescription: { en: string; de: string; ru: string };
+    keywords: { en: string; de: string; ru: string };
+    ogImage: string;
+    canonicalUrl: string;
+  };
 }
 
 const initialFormData: TourFormData = {
   title: { en: '', de: '', ru: '' },
   slug: '',
   destination: '',
+  categoryId: null,
   duration: 1,
   price: 0,
   type: 'cultural',
   status: 'draft',
   groupSize: '2-10',
   isBestseller: false,
+  enablePrivateTour: true,
+  enableGroupTour: false,
+  privateTourPrices: [{ personsFrom: 1, personsTo: 1, price: 0 }],
+  groupTourPrices: [{ personsFrom: 1, personsTo: 5, price: 0 }],
   description: { en: '', de: '', ru: '' },
+  highlights: { en: '', de: '', ru: '' },
   included: { en: [''], de: [''], ru: [''] },
   notIncluded: { en: [''], de: [''], ru: [''] },
   itinerary: [],
   mainImage: '',
+  mainImageAlt: '',
   galleryImages: [],
+  routeImages: [],
+  faq: [],
+  seo: {
+    metaTitle: { en: '', de: '', ru: '' },
+    metaDescription: { en: '', de: '', ru: '' },
+    keywords: { en: '', de: '', ru: '' },
+    ogImage: '',
+    canonicalUrl: '',
+  },
 };
 
 const MAX_GALLERY_IMAGES = 10;
@@ -71,6 +119,8 @@ const steps = [
   { id: 2, title: 'Description', icon: Globe },
   { id: 3, title: 'Itinerary', icon: Calendar },
   { id: 4, title: 'Images', icon: ImageIcon },
+  { id: 5, title: 'FAQ', icon: HelpCircle },
+  { id: 6, title: 'SEO', icon: Search },
 ];
 
 const tourTypes = [
@@ -99,9 +149,11 @@ export default function NewTourPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [uploadingMain, setUploadingMain] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [uploadingRoutes, setUploadingRoutes] = useState(false);
   const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [categories, setCategories] = useState<TourCategory[]>([]);
 
-  // Fetch destinations from API
+  // Fetch destinations and categories from API
   useEffect(() => {
     const fetchDestinations = async () => {
       try {
@@ -114,7 +166,21 @@ export default function NewTourPage() {
         console.error('Error fetching destinations:', error);
       }
     };
+
+    const fetchCategories = async () => {
+      try {
+        const response = await fetch('/api/tour-categories?status=active');
+        if (response.ok) {
+          const data = await response.json();
+          setCategories(data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+
     fetchDestinations();
+    fetchCategories();
   }, []);
 
   // Generate slug from English title
@@ -140,7 +206,7 @@ export default function NewTourPage() {
 
   // Update multilingual field
   const updateMultilingualField = (
-    field: 'title' | 'description',
+    field: 'title' | 'description' | 'highlights',
     lang: 'en' | 'de' | 'ru',
     value: string
   ) => {
@@ -193,12 +259,65 @@ export default function NewTourPage() {
     }));
   };
 
+  // Private Tour Prices management
+  const addPrivateTourPrice = () => {
+    const lastTo = formData.privateTourPrices.length > 0
+      ? formData.privateTourPrices[formData.privateTourPrices.length - 1].personsTo + 1
+      : 1;
+    setFormData((prev) => ({
+      ...prev,
+      privateTourPrices: [...prev.privateTourPrices, { personsFrom: lastTo, personsTo: lastTo, price: 0 }],
+    }));
+  };
+
+  const updatePrivateTourPrice = (index: number, field: 'personsFrom' | 'personsTo' | 'price', value: number) => {
+    setFormData((prev) => {
+      const updated = [...prev.privateTourPrices];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, privateTourPrices: updated };
+    });
+  };
+
+  const removePrivateTourPrice = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      privateTourPrices: prev.privateTourPrices.filter((_, i) => i !== index),
+    }));
+  };
+
+  // Group Tour Prices management
+  const addGroupTourPrice = () => {
+    const lastTo = formData.groupTourPrices.length > 0
+      ? formData.groupTourPrices[formData.groupTourPrices.length - 1].personsTo + 1
+      : 1;
+    setFormData((prev) => ({
+      ...prev,
+      groupTourPrices: [...prev.groupTourPrices, { personsFrom: lastTo, personsTo: lastTo + 4, price: 0 }],
+    }));
+  };
+
+  const updateGroupTourPrice = (index: number, field: 'personsFrom' | 'personsTo' | 'price', value: number) => {
+    setFormData((prev) => {
+      const updated = [...prev.groupTourPrices];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, groupTourPrices: updated };
+    });
+  };
+
+  const removeGroupTourPrice = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      groupTourPrices: prev.groupTourPrices.filter((_, i) => i !== index),
+    }));
+  };
+
   // Itinerary management
   const addItineraryDay = () => {
     const newDay = {
       day: formData.itinerary.length + 1,
       title: { en: '', de: '', ru: '' },
       description: { en: '', de: '', ru: '' },
+      image: '',
     };
     setFormData((prev) => ({
       ...prev,
@@ -222,6 +341,32 @@ export default function NewTourPage() {
     });
   };
 
+  const updateItineraryImage = (index: number, imageUrl: string) => {
+    setFormData((prev) => {
+      const newItinerary = [...prev.itinerary];
+      newItinerary[index] = {
+        ...newItinerary[index],
+        image: imageUrl,
+      };
+      return { ...prev, itinerary: newItinerary };
+    });
+  };
+
+  const [uploadingItineraryIndex, setUploadingItineraryIndex] = useState<number | null>(null);
+
+  const handleItineraryImageUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingItineraryIndex(index);
+    const url = await uploadFile(file);
+    if (url) {
+      updateItineraryImage(index, url);
+    }
+    setUploadingItineraryIndex(null);
+    e.target.value = '';
+  };
+
   const removeItineraryDay = (index: number) => {
     setFormData((prev) => ({
       ...prev,
@@ -229,6 +374,122 @@ export default function NewTourPage() {
         .filter((_, i) => i !== index)
         .map((day, i) => ({ ...day, day: i + 1 })),
     }));
+  };
+
+  // FAQ management
+  const addFaqItem = () => {
+    const newFaq = {
+      question: { en: '', de: '', ru: '' },
+      answer: { en: '', de: '', ru: '' },
+    };
+    setFormData((prev) => ({
+      ...prev,
+      faq: [...prev.faq, newFaq],
+    }));
+  };
+
+  const updateFaqItem = (
+    index: number,
+    field: 'question' | 'answer',
+    lang: 'en' | 'de' | 'ru',
+    value: string
+  ) => {
+    setFormData((prev) => {
+      const newFaq = [...prev.faq];
+      newFaq[index] = {
+        ...newFaq[index],
+        [field]: { ...newFaq[index][field], [lang]: value },
+      };
+      return { ...prev, faq: newFaq };
+    });
+  };
+
+  const removeFaqItem = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      faq: prev.faq.filter((_, i) => i !== index),
+    }));
+  };
+
+  // SEO management
+  const [isGeneratingSeo, setIsGeneratingSeo] = useState(false);
+  const [seoLanguage, setSeoLanguage] = useState<'en' | 'de' | 'ru'>('en');
+
+  const updateSeoField = (
+    field: 'metaTitle' | 'metaDescription' | 'keywords',
+    lang: 'en' | 'de' | 'ru',
+    value: string
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      seo: {
+        ...prev.seo,
+        [field]: { ...prev.seo[field], [lang]: value },
+      },
+    }));
+  };
+
+  const updateSeoSimpleField = (field: 'ogImage' | 'canonicalUrl', value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      seo: { ...prev.seo, [field]: value },
+    }));
+  };
+
+  const generateSeoWithAI = async () => {
+    setIsGeneratingSeo(true);
+    try {
+      // Collect all data from previous steps
+      const tourData = {
+        title: formData.title,
+        destination: formData.destination,
+        duration: formData.duration,
+        type: formData.type,
+        description: formData.description,
+        highlights: formData.highlights,
+        included: formData.included,
+        itinerary: formData.itinerary.map(day => ({
+          day: day.day,
+          title: day.title,
+          description: day.description,
+        })),
+        faq: formData.faq,
+      };
+
+      const response = await fetch('/api/generate-seo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tourData, language: seoLanguage }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFormData((prev) => ({
+          ...prev,
+          seo: {
+            ...prev.seo,
+            metaTitle: {
+              ...prev.seo.metaTitle,
+              [seoLanguage]: data.metaTitle || prev.seo.metaTitle[seoLanguage],
+            },
+            metaDescription: {
+              ...prev.seo.metaDescription,
+              [seoLanguage]: data.metaDescription || prev.seo.metaDescription[seoLanguage],
+            },
+            keywords: {
+              ...prev.seo.keywords,
+              [seoLanguage]: data.keywords || prev.seo.keywords[seoLanguage],
+            },
+          },
+        }));
+      } else {
+        console.error('Failed to generate SEO');
+      }
+    } catch (error) {
+      console.error('Error generating SEO:', error);
+    } finally {
+      setIsGeneratingSeo(false);
+    }
   };
 
   // Image upload functions
@@ -292,23 +553,31 @@ export default function NewTourPage() {
     }
 
     setUploadingGallery(true);
-    const uploadedUrls: string[] = [];
+    const uploadedImages: { url: string; alt: string }[] = [];
 
     for (let i = 0; i < Math.min(files.length, remainingSlots); i++) {
       const url = await uploadFile(files[i]);
       if (url) {
-        uploadedUrls.push(url);
+        uploadedImages.push({ url, alt: '' });
       }
     }
 
-    if (uploadedUrls.length > 0) {
+    if (uploadedImages.length > 0) {
       setFormData((prev) => ({
         ...prev,
-        galleryImages: [...prev.galleryImages, ...uploadedUrls],
+        galleryImages: [...prev.galleryImages, ...uploadedImages],
       }));
     }
     setUploadingGallery(false);
     e.target.value = '';
+  };
+
+  const updateGalleryImageAlt = (index: number, alt: string) => {
+    setFormData((prev) => {
+      const updated = [...prev.galleryImages];
+      updated[index] = { ...updated[index], alt };
+      return { ...prev, galleryImages: updated };
+    });
   };
 
   const removeMainImage = () => {
@@ -320,6 +589,83 @@ export default function NewTourPage() {
       ...prev,
       galleryImages: prev.galleryImages.filter((_, i) => i !== index),
     }));
+  };
+
+  // Route images handlers
+  const handleRouteImagesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const remainingSlots = MAX_GALLERY_IMAGES - formData.routeImages.length;
+    if (files.length > remainingSlots) {
+      setErrors((prev) => ({ ...prev, upload: `Faqat ${remainingSlots} ta marshrut rasmi qo'shish mumkin` }));
+      return;
+    }
+
+    setUploadingRoutes(true);
+    const uploadedImages: { url: string; alt: string }[] = [];
+
+    for (let i = 0; i < Math.min(files.length, remainingSlots); i++) {
+      const url = await uploadFile(files[i]);
+      if (url) {
+        uploadedImages.push({ url, alt: '' });
+      }
+    }
+
+    if (uploadedImages.length > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        routeImages: [...prev.routeImages, ...uploadedImages],
+      }));
+    }
+    setUploadingRoutes(false);
+    e.target.value = '';
+  };
+
+  const updateRouteImageAlt = (index: number, alt: string) => {
+    setFormData((prev) => {
+      const updated = [...prev.routeImages];
+      updated[index] = { ...updated[index], alt };
+      return { ...prev, routeImages: updated };
+    });
+  };
+
+  const removeRouteImage = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      routeImages: prev.routeImages.filter((_, i) => i !== index),
+    }));
+  };
+
+  const handleRoutesDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+
+    const remainingSlots = MAX_GALLERY_IMAGES - formData.routeImages.length;
+    if (files.length > remainingSlots) {
+      setErrors((prev) => ({ ...prev, upload: `Faqat ${remainingSlots} ta marshrut rasmi qo'shish mumkin` }));
+      return;
+    }
+
+    setUploadingRoutes(true);
+    const uploadedImages: { url: string; alt: string }[] = [];
+
+    for (let i = 0; i < Math.min(files.length, remainingSlots); i++) {
+      const url = await uploadFile(files[i]);
+      if (url) {
+        uploadedImages.push({ url, alt: '' });
+      }
+    }
+
+    if (uploadedImages.length > 0) {
+      setFormData((prev) => ({
+        ...prev,
+        routeImages: [...prev.routeImages, ...uploadedImages],
+      }));
+    }
+    setUploadingRoutes(false);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -354,19 +700,19 @@ export default function NewTourPage() {
     }
 
     setUploadingGallery(true);
-    const uploadedUrls: string[] = [];
+    const uploadedImages: { url: string; alt: string }[] = [];
 
     for (let i = 0; i < Math.min(files.length, remainingSlots); i++) {
       const url = await uploadFile(files[i]);
       if (url) {
-        uploadedUrls.push(url);
+        uploadedImages.push({ url, alt: '' });
       }
     }
 
-    if (uploadedUrls.length > 0) {
+    if (uploadedImages.length > 0) {
       setFormData((prev) => ({
         ...prev,
-        galleryImages: [...prev.galleryImages, ...uploadedUrls],
+        galleryImages: [...prev.galleryImages, ...uploadedImages],
       }));
     }
     setUploadingGallery(false);
@@ -395,7 +741,7 @@ export default function NewTourPage() {
   // Navigation
   const nextStep = () => {
     if (validateStep(currentStep)) {
-      setCurrentStep((prev) => Math.min(prev + 1, 4));
+      setCurrentStep((prev) => Math.min(prev + 1, 6));
     }
   };
 
@@ -415,12 +761,19 @@ export default function NewTourPage() {
 
     setIsSubmitting(true);
     try {
-      // Combine mainImage and galleryImages into images array
-      const allImages = [formData.mainImage, ...formData.galleryImages];
-
       // Filter out empty values
       const cleanedData = {
         ...formData,
+        // Send main image with alt text
+        mainImage: formData.mainImage,
+        mainImageAlt: formData.mainImageAlt,
+        // Gallery images as array of { url, alt }
+        galleryImages: formData.galleryImages,
+        // Route images as array of { url, alt }
+        routeImages: formData.routeImages,
+        // For backwards compatibility, also send images array (URL strings only)
+        images: [formData.mainImage, ...formData.galleryImages.map(img => img.url)],
+        highlights: formData.highlights,
         included: {
           en: formData.included.en.filter((item) => item.trim()),
           de: formData.included.de.filter((item) => item.trim()),
@@ -431,7 +784,12 @@ export default function NewTourPage() {
           de: formData.notIncluded.de.filter((item) => item.trim()),
           ru: formData.notIncluded.ru.filter((item) => item.trim()),
         },
-        images: allImages,
+        // FAQ - filter out empty questions
+        faq: formData.faq.filter((item) =>
+          item.question.en.trim() || item.question.de.trim() || item.question.ru.trim()
+        ),
+        // SEO data
+        seo: formData.seo,
       };
 
       const response = await fetch('/api/tours', {
@@ -494,14 +852,18 @@ export default function NewTourPage() {
         <div className="flex items-center justify-between">
           {steps.map((step, index) => (
             <div key={step.id} className="flex items-center">
-              <div className="flex flex-col items-center">
+              <button
+                type="button"
+                onClick={() => setCurrentStep(step.id)}
+                className="flex flex-col items-center cursor-pointer group"
+              >
                 <div
-                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
                     currentStep > step.id
-                      ? 'bg-green-500 text-white'
+                      ? 'bg-green-500 text-white group-hover:bg-green-600'
                       : currentStep === step.id
                       ? 'bg-primary-500 text-white'
-                      : 'bg-secondary-100 text-secondary-400'
+                      : 'bg-secondary-100 text-secondary-400 group-hover:bg-secondary-200'
                   }`}
                 >
                   {currentStep > step.id ? (
@@ -511,13 +873,13 @@ export default function NewTourPage() {
                   )}
                 </div>
                 <span
-                  className={`mt-2 text-sm font-medium ${
-                    currentStep >= step.id ? 'text-secondary-800' : 'text-secondary-400'
+                  className={`mt-2 text-sm font-medium transition-colors ${
+                    currentStep >= step.id ? 'text-secondary-800' : 'text-secondary-400 group-hover:text-secondary-600'
                   }`}
                 >
                   {step.title}
                 </span>
-              </div>
+              </button>
               {index < steps.length - 1 && (
                 <div
                   className={`w-24 h-1 mx-4 rounded ${
@@ -600,6 +962,23 @@ export default function NewTourPage() {
                 {errors.destination && <p className="text-red-500 text-sm mt-1">{errors.destination}</p>}
               </div>
 
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-medium text-secondary-700 mb-2">
+                  Kategoriya
+                </label>
+                <select
+                  value={formData.categoryId || ''}
+                  onChange={(e) => updateFormData('categoryId', e.target.value ? parseInt(e.target.value) : null)}
+                  className="w-full px-4 py-3 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                >
+                  <option value="">Kategoriyani tanlang</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name_en}</option>
+                  ))}
+                </select>
+              </div>
+
               {/* Tour Type */}
               <div>
                 <label className="block text-sm font-medium text-secondary-700 mb-2">
@@ -632,24 +1011,6 @@ export default function NewTourPage() {
                   }`}
                 />
                 {errors.duration && <p className="text-red-500 text-sm mt-1">{errors.duration}</p>}
-              </div>
-
-              {/* Price */}
-              <div>
-                <label className="block text-sm font-medium text-secondary-700 mb-2">
-                  <DollarSign size={16} className="inline mr-1" />
-                  Price (EUR) *
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.price}
-                  onChange={(e) => updateFormData('price', parseInt(e.target.value) || 0)}
-                  className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                    errors.price ? 'border-red-500' : 'border-secondary-200'
-                  }`}
-                />
-                {errors.price && <p className="text-red-500 text-sm mt-1">{errors.price}</p>}
               </div>
 
               {/* Group Size */}
@@ -697,6 +1058,147 @@ export default function NewTourPage() {
                 Mark as Bestseller
               </label>
             </div>
+
+            {/* Pricing Tables */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+              {/* Private Tour Prices */}
+              <div className="border border-secondary-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-secondary-800">Private Tour Prices</h3>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.enablePrivateTour}
+                      onChange={(e) => updateFormData('enablePrivateTour', e.target.checked)}
+                      className="w-4 h-4 text-primary-500 border-secondary-300 rounded focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-secondary-600">Enable</span>
+                  </label>
+                </div>
+
+                {formData.enablePrivateTour && (
+                  <>
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-12 gap-2 text-xs font-medium text-secondary-500 px-1">
+                        <div className="col-span-3">From</div>
+                        <div className="col-span-3">To</div>
+                        <div className="col-span-4">Price (EUR)</div>
+                        <div className="col-span-2"></div>
+                      </div>
+                      {formData.privateTourPrices.map((item, index) => (
+                        <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.personsFrom}
+                            onChange={(e) => updatePrivateTourPrice(index, 'personsFrom', parseInt(e.target.value) || 1)}
+                            className="col-span-3 px-3 py-2 border border-secondary-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.personsTo}
+                            onChange={(e) => updatePrivateTourPrice(index, 'personsTo', parseInt(e.target.value) || 1)}
+                            className="col-span-3 px-3 py-2 border border-secondary-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            value={item.price}
+                            onChange={(e) => updatePrivateTourPrice(index, 'price', parseInt(e.target.value) || 0)}
+                            className="col-span-4 px-3 py-2 border border-secondary-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removePrivateTourPrice(index)}
+                            className="col-span-2 p-2 text-red-500 hover:bg-red-50 rounded-lg disabled:opacity-30"
+                            disabled={formData.privateTourPrices.length === 1}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addPrivateTourPrice}
+                      className="mt-3 flex items-center gap-1 text-sm text-primary-500 hover:text-primary-600"
+                    >
+                      <Plus size={16} /> Add Price
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Group Tour Prices */}
+              <div className="border border-secondary-200 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-secondary-800">Group Tour Prices</h3>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.enableGroupTour}
+                      onChange={(e) => updateFormData('enableGroupTour', e.target.checked)}
+                      className="w-4 h-4 text-primary-500 border-secondary-300 rounded focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-secondary-600">Enable</span>
+                  </label>
+                </div>
+
+                {formData.enableGroupTour && (
+                  <>
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-12 gap-2 text-xs font-medium text-secondary-500 px-1">
+                        <div className="col-span-3">From</div>
+                        <div className="col-span-3">To</div>
+                        <div className="col-span-4">Price (EUR)</div>
+                        <div className="col-span-2"></div>
+                      </div>
+                      {formData.groupTourPrices.map((item, index) => (
+                        <div key={index} className="grid grid-cols-12 gap-2 items-center">
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.personsFrom}
+                            onChange={(e) => updateGroupTourPrice(index, 'personsFrom', parseInt(e.target.value) || 1)}
+                            className="col-span-3 px-3 py-2 border border-secondary-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                          <input
+                            type="number"
+                            min="1"
+                            value={item.personsTo}
+                            onChange={(e) => updateGroupTourPrice(index, 'personsTo', parseInt(e.target.value) || 1)}
+                            className="col-span-3 px-3 py-2 border border-secondary-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            value={item.price}
+                            onChange={(e) => updateGroupTourPrice(index, 'price', parseInt(e.target.value) || 0)}
+                            className="col-span-4 px-3 py-2 border border-secondary-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeGroupTourPrice(index)}
+                            className="col-span-2 p-2 text-red-500 hover:bg-red-50 rounded-lg disabled:opacity-30"
+                            disabled={formData.groupTourPrices.length === 1}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addGroupTourPrice}
+                      className="mt-3 flex items-center gap-1 text-sm text-primary-500 hover:text-primary-600"
+                    >
+                      <Plus size={16} /> Add Price
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
@@ -724,6 +1226,20 @@ export default function NewTourPage() {
               {errors.descriptionEn && activeLanguage === 'en' && (
                 <p className="text-red-500 text-sm mt-1">{errors.descriptionEn}</p>
               )}
+            </div>
+
+            {/* Highlights */}
+            <div>
+              <label className="block text-sm font-medium text-secondary-700 mb-2">
+                Highlights ({activeLanguage.toUpperCase()})
+              </label>
+              <textarea
+                value={formData.highlights[activeLanguage]}
+                onChange={(e) => updateMultilingualField('highlights', activeLanguage, e.target.value)}
+                rows={4}
+                className="w-full px-4 py-3 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                placeholder={`Enter tour highlights in ${activeLanguage.toUpperCase()} (e.g., Visit UNESCO World Heritage sites, Experience local cuisine, etc.)`}
+              />
             </div>
 
             {/* What's Included */}
@@ -840,6 +1356,55 @@ export default function NewTourPage() {
                       </button>
                     </div>
                     <div className="space-y-4">
+                      {/* Day Image */}
+                      <div>
+                        <label className="block text-sm font-medium text-secondary-700 mb-2">
+                          Kun rasmi (Day Image)
+                        </label>
+                        {day.image ? (
+                          <div className="relative inline-block">
+                            <img
+                              src={day.image}
+                              alt={`Day ${day.day}`}
+                              className="w-40 h-28 object-cover rounded-lg border border-secondary-200"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => updateItineraryImage(index, '')}
+                              className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="inline-block">
+                            <input
+                              type="file"
+                              id={`itinerary-image-${index}`}
+                              accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                              onChange={(e) => handleItineraryImageUpload(index, e)}
+                              className="hidden"
+                            />
+                            <label
+                              htmlFor={`itinerary-image-${index}`}
+                              className="flex items-center gap-2 px-4 py-2 border-2 border-dashed border-secondary-300 rounded-lg cursor-pointer hover:border-primary-500 transition-colors"
+                            >
+                              {uploadingItineraryIndex === index ? (
+                                <>
+                                  <Loader2 size={18} className="animate-spin text-primary-500" />
+                                  <span className="text-secondary-600">Yuklanmoqda...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Upload size={18} className="text-secondary-400" />
+                                  <span className="text-secondary-600">Rasm yuklash</span>
+                                </>
+                              )}
+                            </label>
+                          </div>
+                        )}
+                      </div>
+
                       <div>
                         <label className="block text-sm font-medium text-secondary-700 mb-1">
                           Day Title ({activeLanguage.toUpperCase()})
@@ -904,19 +1469,34 @@ export default function NewTourPage() {
               </label>
 
               {formData.mainImage ? (
-                <div className="relative inline-block">
-                  <img
-                    src={formData.mainImage}
-                    alt="Main tour image"
-                    className="w-64 h-48 object-cover rounded-lg border border-secondary-200"
-                  />
-                  <button
-                    type="button"
-                    onClick={removeMainImage}
-                    className="absolute -top-2 -right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
-                  >
-                    <X size={16} />
-                  </button>
+                <div className="flex gap-4 items-start">
+                  <div className="relative">
+                    <img
+                      src={formData.mainImage}
+                      alt={formData.mainImageAlt || "Main tour image"}
+                      className="w-48 h-36 object-cover rounded-lg border border-secondary-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeMainImage}
+                      className="absolute -top-2 -right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                    >
+                      <X size={16} />
+                    </button>
+                    <p className="mt-1 text-xs text-secondary-500 truncate max-w-[192px]" title={formData.mainImage.split('/').pop()}>
+                      {formData.mainImage.split('/').pop()}
+                    </p>
+                  </div>
+                  <div className="flex-1 max-w-xs">
+                    <label className="block text-xs text-secondary-500 mb-1">Alt Text (SEO uchun)</label>
+                    <input
+                      type="text"
+                      value={formData.mainImageAlt}
+                      onChange={(e) => updateFormData('mainImageAlt', e.target.value)}
+                      className="w-full px-3 py-2 border border-secondary-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      placeholder="Rasmni tavsiflovchi matn"
+                    />
+                  </div>
                 </div>
               ) : (
                 <div
@@ -966,24 +1546,36 @@ export default function NewTourPage() {
 
               {/* Gallery Grid */}
               {formData.galleryImages.length > 0 && (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                   {formData.galleryImages.map((image, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={image}
-                        alt={`Gallery image ${index + 1}`}
-                        className="w-full h-24 object-cover rounded-lg border border-secondary-200"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeGalleryImage(index)}
-                        className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg opacity-0 group-hover:opacity-100"
-                      >
-                        <X size={14} />
-                      </button>
-                      <span className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded">
-                        {index + 1}
-                      </span>
+                    <div key={index} className="flex gap-3 p-3 border border-secondary-200 rounded-lg">
+                      <div className="relative flex-shrink-0">
+                        <img
+                          src={image.url}
+                          alt={image.alt || `Gallery image ${index + 1}`}
+                          className="w-24 h-20 object-cover rounded-lg border border-secondary-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeGalleryImage(index)}
+                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                        >
+                          <X size={12} />
+                        </button>
+                        <p className="mt-1 text-[10px] text-secondary-400 truncate max-w-[96px]" title={image.url.split('/').pop()}>
+                          {image.url.split('/').pop()}
+                        </p>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <label className="block text-xs text-secondary-500 mb-1">Alt Text</label>
+                        <input
+                          type="text"
+                          value={image.alt}
+                          onChange={(e) => updateGalleryImageAlt(index, e.target.value)}
+                          className="w-full px-2 py-1.5 border border-secondary-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          placeholder="Rasm tavsifi"
+                        />
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1025,6 +1617,493 @@ export default function NewTourPage() {
                 </div>
               )}
             </div>
+
+            {/* Route Images Upload */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className="block text-sm font-medium text-secondary-700">
+                  Marshrut Rasmlari (Tour Routes)
+                </label>
+                <span className="text-sm text-secondary-500">
+                  {formData.routeImages.length} / {MAX_GALLERY_IMAGES}
+                </span>
+              </div>
+
+              {/* Route Images Grid */}
+              {formData.routeImages.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                  {formData.routeImages.map((image, index) => (
+                    <div key={index} className="flex gap-3 p-3 border border-secondary-200 rounded-lg">
+                      <div className="relative flex-shrink-0">
+                        <img
+                          src={image.url}
+                          alt={image.alt || `Route image ${index + 1}`}
+                          className="w-24 h-20 object-cover rounded-lg border border-secondary-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeRouteImage(index)}
+                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-lg"
+                        >
+                          <X size={12} />
+                        </button>
+                        <span className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-1.5 py-0.5 rounded">
+                          {index + 1}
+                        </span>
+                        <p className="mt-1 text-[10px] text-secondary-400 truncate max-w-[96px]" title={image.url.split('/').pop()}>
+                          {image.url.split('/').pop()}
+                        </p>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <label className="block text-xs text-secondary-500 mb-1">Alt Text</label>
+                        <input
+                          type="text"
+                          value={image.alt}
+                          onChange={(e) => updateRouteImageAlt(index, e.target.value)}
+                          className="w-full px-2 py-1.5 border border-secondary-200 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          placeholder="Marshrut rasmi tavsifi"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Upload Area for Route Images */}
+              {formData.routeImages.length < MAX_GALLERY_IMAGES && (
+                <div
+                  onDragOver={handleDragOver}
+                  onDrop={handleRoutesDrop}
+                  className="border-2 border-dashed border-secondary-300 rounded-lg p-6 text-center hover:border-primary-500 transition-colors cursor-pointer"
+                >
+                  <input
+                    type="file"
+                    id="routeImages"
+                    accept="image/jpeg,image/jpg,image/png,image/webp,image/gif"
+                    multiple
+                    onChange={handleRouteImagesUpload}
+                    className="hidden"
+                  />
+                  <label htmlFor="routeImages" className="cursor-pointer">
+                    {uploadingRoutes ? (
+                      <div className="flex flex-col items-center">
+                        <Loader2 size={36} className="text-primary-500 animate-spin mb-2" />
+                        <span className="text-secondary-600">Yuklanmoqda...</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <MapPin size={36} className="text-secondary-300 mb-2" />
+                        <span className="text-secondary-600 font-medium">
+                          Marshrut rasmlari qo&apos;shing
+                        </span>
+                        <span className="text-secondary-400 text-sm mt-1">
+                          Bir nechta rasm tanlash mumkin (max {MAX_GALLERY_IMAGES - formData.routeImages.length} ta)
+                        </span>
+                      </div>
+                    )}
+                  </label>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: FAQ */}
+        {currentStep === 5 && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-xl font-semibold text-secondary-800">Frequently Asked Questions</h2>
+                <p className="text-secondary-500 text-sm">Ko&apos;p so&apos;raladigan savollar va javoblar</p>
+              </div>
+            </div>
+
+            <LanguageTabs />
+
+            {formData.faq.length === 0 ? (
+              <div className="text-center py-12 bg-secondary-50 rounded-lg">
+                <HelpCircle size={48} className="mx-auto text-secondary-300 mb-4" />
+                <p className="text-secondary-500 mb-4">Hali savol-javob qo&apos;shilmagan</p>
+                <button
+                  type="button"
+                  onClick={addFaqItem}
+                  className="btn-primary"
+                >
+                  <Plus size={18} className="inline mr-2" />
+                  Birinchi savolni qo&apos;shish
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {formData.faq.map((item, index) => (
+                  <div key={index} className="border border-secondary-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <span className="w-8 h-8 bg-primary-500 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                          {index + 1}
+                        </span>
+                        <span className="font-medium text-secondary-700">Savol {index + 1}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeFaqItem(index)}
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* Question */}
+                      <div>
+                        <label className="block text-sm font-medium text-secondary-700 mb-1">
+                          Savol ({activeLanguage.toUpperCase()})
+                        </label>
+                        <input
+                          type="text"
+                          value={item.question[activeLanguage]}
+                          onChange={(e) => updateFaqItem(index, 'question', activeLanguage, e.target.value)}
+                          className="w-full px-4 py-2 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          placeholder={`Savolni ${activeLanguage.toUpperCase()} tilida kiriting`}
+                        />
+                      </div>
+
+                      {/* Answer */}
+                      <div>
+                        <label className="block text-sm font-medium text-secondary-700 mb-1">
+                          Javob ({activeLanguage.toUpperCase()})
+                        </label>
+                        <textarea
+                          value={item.answer[activeLanguage]}
+                          onChange={(e) => updateFaqItem(index, 'answer', activeLanguage, e.target.value)}
+                          rows={3}
+                          className="w-full px-4 py-2 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          placeholder={`Javobni ${activeLanguage.toUpperCase()} tilida kiriting`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={addFaqItem}
+                  className="w-full py-3 border-2 border-dashed border-secondary-300 rounded-lg text-secondary-500 hover:border-primary-500 hover:text-primary-500 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Plus size={20} />
+                  Yangi savol qo&apos;shish
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 6: SEO */}
+        {currentStep === 6 && (
+          <div className="space-y-6">
+            {/* Header with AI Button */}
+            <div className="bg-gradient-to-r from-primary-500 to-primary-600 rounded-2xl p-6 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold flex items-center gap-3">
+                    <Search size={28} />
+                    SEO Optimization
+                  </h2>
+                  <p className="text-primary-100 mt-1">
+                    Qidiruv tizimlarida yaxshi ko&apos;rinish uchun SEO sozlamalari
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={generateSeoWithAI}
+                  disabled={isGeneratingSeo}
+                  className="flex items-center gap-2 px-6 py-3 bg-white text-primary-600 rounded-xl font-semibold hover:bg-primary-50 transition-all shadow-lg hover:shadow-xl disabled:opacity-70"
+                >
+                  {isGeneratingSeo ? (
+                    <>
+                      <RefreshCw size={20} className="animate-spin" />
+                      Generatsiya...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={20} />
+                      AI bilan generatsiya
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Language Selector */}
+            <div className="bg-white rounded-xl p-4 shadow-sm">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-secondary-600">Til tanlang:</span>
+                <div className="flex gap-2">
+                  {(['en', 'de', 'ru'] as const).map((lang) => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => setSeoLanguage(lang)}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                        seoLanguage === lang
+                          ? 'bg-primary-500 text-white shadow-md'
+                          : 'bg-secondary-100 text-secondary-600 hover:bg-secondary-200'
+                      }`}
+                    >
+                      {lang === 'en' ? '🇬🇧 English' : lang === 'de' ? '🇩🇪 Deutsch' : '🇷🇺 Русский'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* SEO Fields Table */}
+            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gradient-to-r from-secondary-50 to-secondary-100">
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-secondary-700 w-48">
+                      Maydon
+                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-secondary-700">
+                      Qiymat ({seoLanguage.toUpperCase()})
+                    </th>
+                    <th className="px-6 py-4 text-center text-sm font-semibold text-secondary-700 w-24">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-secondary-100">
+                  {/* Meta Title */}
+                  <tr className="hover:bg-secondary-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <FileText size={20} className="text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-secondary-800">Meta Title</p>
+                          <p className="text-xs text-secondary-500">50-60 belgi tavsiya etiladi</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <input
+                        type="text"
+                        value={formData.seo.metaTitle[seoLanguage]}
+                        onChange={(e) => updateSeoField('metaTitle', seoLanguage, e.target.value)}
+                        className="w-full px-4 py-3 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                        placeholder="Sahifa sarlavhasi..."
+                        maxLength={70}
+                      />
+                      <div className="flex justify-between mt-1">
+                        <span className="text-xs text-secondary-400">
+                          {formData.seo.metaTitle[seoLanguage].length}/70
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {formData.seo.metaTitle[seoLanguage].length > 0 ? (
+                        formData.seo.metaTitle[seoLanguage].length >= 50 && formData.seo.metaTitle[seoLanguage].length <= 60 ? (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            <Check size={14} className="mr-1" /> Yaxshi
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                            ⚠️ Tavsiya
+                          </span>
+                        )
+                      ) : (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-secondary-100 text-secondary-500">
+                          Bo&apos;sh
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+
+                  {/* Meta Description */}
+                  <tr className="hover:bg-secondary-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                          <Globe size={20} className="text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-secondary-800">Meta Description</p>
+                          <p className="text-xs text-secondary-500">150-160 belgi tavsiya etiladi</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <textarea
+                        value={formData.seo.metaDescription[seoLanguage]}
+                        onChange={(e) => updateSeoField('metaDescription', seoLanguage, e.target.value)}
+                        className="w-full px-4 py-3 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all resize-none"
+                        placeholder="Sahifa tavsifi..."
+                        rows={3}
+                        maxLength={200}
+                      />
+                      <div className="flex justify-between mt-1">
+                        <span className="text-xs text-secondary-400">
+                          {formData.seo.metaDescription[seoLanguage].length}/200
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {formData.seo.metaDescription[seoLanguage].length > 0 ? (
+                        formData.seo.metaDescription[seoLanguage].length >= 150 && formData.seo.metaDescription[seoLanguage].length <= 160 ? (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                            <Check size={14} className="mr-1" /> Yaxshi
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                            ⚠️ Tavsiya
+                          </span>
+                        )
+                      ) : (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-secondary-100 text-secondary-500">
+                          Bo&apos;sh
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+
+                  {/* Keywords */}
+                  <tr className="hover:bg-secondary-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                          <Search size={20} className="text-orange-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-secondary-800">Keywords</p>
+                          <p className="text-xs text-secondary-500">Vergul bilan ajrating</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <input
+                        type="text"
+                        value={formData.seo.keywords[seoLanguage]}
+                        onChange={(e) => updateSeoField('keywords', seoLanguage, e.target.value)}
+                        className="w-full px-4 py-3 border border-secondary-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
+                        placeholder="uzbekistan, tour, travel, samarkand..."
+                      />
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {formData.seo.keywords[seoLanguage].length > 0 ? (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          <Check size={14} className="mr-1" /> Yaxshi
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-secondary-100 text-secondary-500">
+                          Bo&apos;sh
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+
+                  {/* OG Image */}
+                  <tr className="hover:bg-secondary-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-pink-100 rounded-lg flex items-center justify-center">
+                          <ImageIcon size={20} className="text-pink-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-secondary-800">OG Image</p>
+                          <p className="text-xs text-secondary-500">Ijtimoiy tarmoqlar uchun</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-3 items-center">
+                        {formData.mainImage ? (
+                          <>
+                            <img
+                              src={formData.mainImage}
+                              alt="OG Preview"
+                              className="w-20 h-12 object-cover rounded-lg border border-secondary-200"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => updateSeoSimpleField('ogImage', formData.mainImage)}
+                              className="px-4 py-2 bg-primary-100 text-primary-600 rounded-lg text-sm font-medium hover:bg-primary-200 transition-colors"
+                            >
+                              Asosiy rasmni ishlatish
+                            </button>
+                          </>
+                        ) : (
+                          <span className="text-secondary-400 text-sm">Avval asosiy rasmni yuklang</span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {formData.seo.ogImage || formData.mainImage ? (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          <Check size={14} className="mr-1" /> Tayyor
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-secondary-100 text-secondary-500">
+                          Bo&apos;sh
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+
+                  {/* Canonical URL */}
+                  <tr className="hover:bg-secondary-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-teal-100 rounded-lg flex items-center justify-center">
+                          <Globe size={20} className="text-teal-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-secondary-800">Canonical URL</p>
+                          <p className="text-xs text-secondary-500">Avtomatik generatsiya</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2 px-4 py-3 bg-secondary-50 rounded-lg">
+                        <span className="text-secondary-400">/tours/</span>
+                        <span className="text-secondary-800 font-medium">{formData.slug || 'tour-slug'}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      {formData.slug ? (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          <Check size={14} className="mr-1" /> Tayyor
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
+                          ⚠️ Slug kiritilmagan
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* SEO Preview */}
+            <div className="bg-white rounded-xl p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-secondary-800 mb-4 flex items-center gap-2">
+                <Search size={20} className="text-primary-500" />
+                Google qidiruv natijasi ko&apos;rinishi
+              </h3>
+              <div className="border border-secondary-200 rounded-lg p-4 bg-white">
+                <div className="text-blue-600 text-lg font-medium hover:underline cursor-pointer">
+                  {formData.seo.metaTitle[seoLanguage] || formData.title[seoLanguage] || 'Sahifa sarlavhasi'}
+                </div>
+                <div className="text-green-700 text-sm mt-1">
+                  discovery-insight-travel.uz/{seoLanguage}/tours/{formData.slug || 'tour-slug'}
+                </div>
+                <div className="text-secondary-600 text-sm mt-1 line-clamp-2">
+                  {formData.seo.metaDescription[seoLanguage] || formData.description[seoLanguage] || 'Sahifa tavsifi shu yerda ko\'rinadi...'}
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1052,7 +2131,7 @@ export default function NewTourPage() {
           Previous
         </button>
 
-        {currentStep < 4 ? (
+        {currentStep < 6 ? (
           <button
             type="button"
             onClick={nextStep}

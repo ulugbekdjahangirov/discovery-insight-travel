@@ -18,6 +18,7 @@ interface Tour {
   price: number;
   rating: number;
   reviews: number;
+  reviews_count: number;
   is_bestseller: boolean;
   tour_type: string;
   status: string;
@@ -31,14 +32,24 @@ interface Destination {
   name_ru: string;
 }
 
+interface TourCategory {
+  id: number;
+  slug: string;
+  name_en: string;
+  name_de: string;
+  name_ru: string;
+}
+
 export default function ToursPage() {
   const t = useTranslations();
   const locale = useLocale() as 'en' | 'de' | 'ru';
   const searchParams = useSearchParams();
   const destinationParam = searchParams.get('destination') || '';
+  const categoryParam = searchParams.get('category') || '';
 
   const [tours, setTours] = useState<Tour[]>([]);
   const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [currentCategory, setCurrentCategory] = useState<TourCategory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(false);
@@ -61,11 +72,25 @@ export default function ToursPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Fetch tours and destinations in parallel
-        const [toursRes, destRes] = await Promise.all([
-          fetch('/api/tours?status=active'),
+        // Build tours API URL with category filter if present
+        let toursUrl = '/api/tours?status=active';
+        if (categoryParam) {
+          toursUrl += `&category=${categoryParam}`;
+        }
+
+        // Fetch tours, destinations, and category info in parallel
+        const fetchPromises: Promise<Response>[] = [
+          fetch(toursUrl),
           fetch('/api/destinations?status=active')
-        ]);
+        ];
+
+        // If category param exists, also fetch category details
+        if (categoryParam) {
+          fetchPromises.push(fetch(`/api/tour-categories?slug=${categoryParam}`));
+        }
+
+        const responses = await Promise.all(fetchPromises);
+        const [toursRes, destRes] = responses;
 
         if (toursRes.ok) {
           const toursData = await toursRes.json();
@@ -76,6 +101,17 @@ export default function ToursPage() {
           const destData = await destRes.json();
           setDestinations(destData);
         }
+
+        // Handle category response
+        if (categoryParam && responses[2]?.ok) {
+          const categoryData = await responses[2].json();
+          // API returns array, get first item
+          if (Array.isArray(categoryData) && categoryData.length > 0) {
+            setCurrentCategory(categoryData[0]);
+          }
+        } else {
+          setCurrentCategory(null);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -84,11 +120,17 @@ export default function ToursPage() {
     };
 
     fetchData();
-  }, []);
+  }, [categoryParam]);
 
   // Get localized destination name
   const getDestinationName = (dest: Destination) => {
     return dest[`name_${locale}`] || dest.name_en;
+  };
+
+  // Get localized category name
+  const getCategoryName = (cat: TourCategory | null) => {
+    if (!cat) return '';
+    return cat[`name_${locale}`] || cat.name_en;
   };
 
   // Transform tour data for TourCard component
@@ -105,7 +147,7 @@ export default function ToursPage() {
     duration: tour.duration,
     price: tour.price,
     rating: tour.rating || 0,
-    reviews: tour.reviews || 0,
+    reviews: tour.reviews_count || tour.reviews || 0,
     isBestseller: tour.is_bestseller,
     type: tour.tour_type,
   }));
@@ -159,11 +201,23 @@ export default function ToursPage() {
       {/* Hero */}
       <div className="bg-primary-500 py-16 md:py-24">
         <div className="container-custom text-center text-white">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">{t('tours.title')}</h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+            {currentCategory ? getCategoryName(currentCategory) : t('tours.title')}
+          </h1>
           <p className="text-xl text-white/90 max-w-2xl mx-auto">
-            {locale === 'en' && 'Explore our carefully crafted tours across Central Asia'}
-            {locale === 'de' && 'Entdecken Sie unsere sorgfältig gestalteten Reisen durch Zentralasien'}
-            {locale === 'ru' && 'Исследуйте наши тщательно разработанные туры по Центральной Азии'}
+            {currentCategory ? (
+              <>
+                {locale === 'en' && `Discover our ${getCategoryName(currentCategory).toLowerCase()} across Central Asia`}
+                {locale === 'de' && `Entdecken Sie unsere ${getCategoryName(currentCategory)} in Zentralasien`}
+                {locale === 'ru' && `Откройте наши ${getCategoryName(currentCategory).toLowerCase()} по Центральной Азии`}
+              </>
+            ) : (
+              <>
+                {locale === 'en' && 'Explore our carefully crafted tours across Central Asia'}
+                {locale === 'de' && 'Entdecken Sie unsere sorgfältig gestalteten Reisen durch Zentralasien'}
+                {locale === 'ru' && 'Исследуйте наши тщательно разработанные туры по Центральной Азии'}
+              </>
+            )}
           </p>
         </div>
       </div>

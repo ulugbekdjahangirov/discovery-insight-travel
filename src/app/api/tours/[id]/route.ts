@@ -60,10 +60,36 @@ export async function PUT(
     // Direct fields
     if (body.slug) updateData.slug = body.slug;
     if (body.destination) updateData.destination = body.destination;
+    if (body.categoryId !== undefined || body.category_id !== undefined) {
+      updateData.category_id = body.categoryId ?? body.category_id ?? null;
+    }
     if (body.duration) updateData.duration = body.duration;
     if (body.price !== undefined) updateData.price = body.price;
     if (body.main_image || body.mainImage) updateData.main_image = body.main_image || body.mainImage;
-    if (body.gallery_images || body.galleryImages) updateData.gallery_images = body.gallery_images || body.galleryImages;
+    if (body.main_image_alt !== undefined || body.mainImageAlt !== undefined) {
+      updateData.main_image_alt = body.main_image_alt ?? body.mainImageAlt ?? '';
+    }
+
+    // Handle gallery images - convert to new format if needed
+    if (body.gallery_images || body.galleryImages) {
+      const galleryInput = body.gallery_images || body.galleryImages;
+      if (Array.isArray(galleryInput)) {
+        updateData.gallery_images = galleryInput.map((img: any) =>
+          typeof img === 'string' ? { url: img, alt: '' } : img
+        );
+      }
+    }
+
+    // Handle route images - convert to new format if needed
+    if (body.route_images || body.routeImages) {
+      const routeInput = body.route_images || body.routeImages;
+      if (Array.isArray(routeInput)) {
+        updateData.route_images = routeInput.map((img: any) =>
+          typeof img === 'string' ? { url: img, alt: '' } : img
+        );
+      }
+    }
+
     if (body.tour_type || body.type) updateData.tour_type = body.tour_type || body.type;
     if (body.status) updateData.status = body.status;
     if (body.is_bestseller !== undefined || body.isBestseller !== undefined) {
@@ -71,6 +97,33 @@ export async function PUT(
     }
     if (body.group_size || body.groupSize) updateData.group_size = body.group_size || body.groupSize;
 
+    // Pricing
+    if (body.enablePrivateTour !== undefined || body.enable_private_tour !== undefined) {
+      updateData.enable_private_tour = body.enablePrivateTour ?? body.enable_private_tour;
+    }
+    if (body.enableGroupTour !== undefined || body.enable_group_tour !== undefined) {
+      updateData.enable_group_tour = body.enableGroupTour ?? body.enable_group_tour;
+    }
+    if (body.privateTourPrices || body.private_tour_prices) {
+      updateData.private_tour_prices = body.privateTourPrices || body.private_tour_prices;
+    }
+    if (body.groupTourPrices || body.group_tour_prices) {
+      updateData.group_tour_prices = body.groupTourPrices || body.group_tour_prices;
+    }
+
+    // Highlights - handle both string and array formats
+    if (body.highlights) {
+      // Helper function to convert to array
+      const toArray = (val: any) => {
+        if (!val) return [];
+        if (Array.isArray(val)) return val;
+        if (typeof val === 'string') return val.split(/[\n\r]+/).filter((s: string) => s.trim());
+        return [];
+      };
+      updateData.highlights_en = toArray(body.highlights.en);
+      updateData.highlights_de = toArray(body.highlights.de);
+      updateData.highlights_ru = toArray(body.highlights.ru);
+    }
     // Included/Not included
     if (body.included) {
       updateData.included_en = body.included.en || [];
@@ -81,6 +134,36 @@ export async function PUT(
       updateData.not_included_en = body.notIncluded.en || [];
       updateData.not_included_de = body.notIncluded.de || [];
       updateData.not_included_ru = body.notIncluded.ru || [];
+    }
+
+    // FAQ
+    if (body.faq !== undefined) {
+      updateData.faq = body.faq || [];
+    }
+
+    // SEO fields
+    if (body.seo) {
+      if (body.seo.metaTitle) {
+        updateData.seo_meta_title_en = body.seo.metaTitle.en || '';
+        updateData.seo_meta_title_de = body.seo.metaTitle.de || '';
+        updateData.seo_meta_title_ru = body.seo.metaTitle.ru || '';
+      }
+      if (body.seo.metaDescription) {
+        updateData.seo_meta_description_en = body.seo.metaDescription.en || '';
+        updateData.seo_meta_description_de = body.seo.metaDescription.de || '';
+        updateData.seo_meta_description_ru = body.seo.metaDescription.ru || '';
+      }
+      if (body.seo.keywords) {
+        updateData.seo_keywords_en = body.seo.keywords.en || '';
+        updateData.seo_keywords_de = body.seo.keywords.de || '';
+        updateData.seo_keywords_ru = body.seo.keywords.ru || '';
+      }
+      if (body.seo.ogImage !== undefined) {
+        updateData.seo_og_image = body.seo.ogImage;
+      }
+      if (body.seo.canonicalUrl !== undefined) {
+        updateData.seo_canonical_url = body.seo.canonicalUrl;
+      }
     }
 
     // Update tour
@@ -111,6 +194,7 @@ export async function PUT(
         description_en: day.description?.en || day.description_en || '',
         description_de: day.description?.de || day.description_de || '',
         description_ru: day.description?.ru || day.description_ru || '',
+        image: day.image || '',
       }));
 
       await supabase.from('itineraries').insert(itineraryData);

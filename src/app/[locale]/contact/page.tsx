@@ -67,8 +67,8 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-medium text-secondary-800">{t('contact.phone')}</h3>
-                    <p className="text-secondary-600">+998 90 123 45 67</p>
-                    <p className="text-secondary-600">+998 71 234 56 78</p>
+                    <p className="text-secondary-600">+998 93 348 42 08</p>
+                    <p className="text-secondary-600 text-sm text-primary-500">(WhatsApp)</p>
                   </div>
                 </div>
 

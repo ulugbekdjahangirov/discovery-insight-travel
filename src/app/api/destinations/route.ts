@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
+    const country = searchParams.get('country');
 
     let query = supabase
       .from('destinations')
@@ -14,6 +15,10 @@ export async function GET(request: NextRequest) {
 
     if (status) {
       query = query.eq('status', status);
+    }
+
+    if (country) {
+      query = query.eq('country', country);
     }
 
     const { data: destinations, error } = await query;

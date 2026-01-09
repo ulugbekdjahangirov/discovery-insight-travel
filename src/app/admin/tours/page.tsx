@@ -20,7 +20,7 @@ interface Tour {
   group_size: string;
   is_bestseller: boolean;
   rating: number;
-  reviews: number;
+  reviews_count: number;
   main_image: string;
   created_at: string;
 }
@@ -250,7 +250,7 @@ export default function AdminToursPage() {
                     <td className="px-6 py-4 text-secondary-600">{tour.duration} days</td>
                     <td className="px-6 py-4 text-secondary-800 font-medium">€{tour.price?.toLocaleString()}</td>
                     <td className="px-6 py-4 text-secondary-600">
-                      {tour.rating > 0 ? `${tour.rating}★ (${tour.reviews})` : '-'}
+                      {tour.rating > 0 ? `${tour.rating}★ (${tour.reviews_count || 0})` : '-'}
                     </td>
                     <td className="px-6 py-4">
                       <span

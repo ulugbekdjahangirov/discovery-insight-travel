@@ -30,7 +30,9 @@ CREATE TABLE IF NOT EXISTS tours (
 
     -- Images
     main_image VARCHAR(500) DEFAULT '',
-    gallery_images TEXT[] DEFAULT '{}',
+    main_image_alt TEXT DEFAULT '',
+    gallery_images JSONB DEFAULT '[]',
+    route_images JSONB DEFAULT '[]',
 
     -- Ratings
     rating DECIMAL(2, 1) DEFAULT 0,
@@ -40,6 +42,17 @@ CREATE TABLE IF NOT EXISTS tours (
     tour_type VARCHAR(50) DEFAULT 'cultural' CHECK (tour_type IN ('cultural', 'adventure', 'historical', 'group', 'private')),
     status VARCHAR(20) DEFAULT 'draft' CHECK (status IN ('active', 'inactive', 'draft')),
     is_bestseller BOOLEAN DEFAULT FALSE,
+
+    -- Pricing options
+    enable_private_tour BOOLEAN DEFAULT TRUE,
+    enable_group_tour BOOLEAN DEFAULT FALSE,
+    private_tour_prices JSONB DEFAULT '[]',
+    group_tour_prices JSONB DEFAULT '[]',
+
+    -- Multilingual highlights
+    highlights_en TEXT DEFAULT '',
+    highlights_de TEXT DEFAULT '',
+    highlights_ru TEXT DEFAULT '',
 
     -- Multilingual included items
     included_en TEXT[] DEFAULT '{}',
@@ -53,6 +66,22 @@ CREATE TABLE IF NOT EXISTS tours (
 
     -- Group size
     group_size VARCHAR(50) DEFAULT '2-10',
+
+    -- FAQ (JSONB array with multilingual questions/answers)
+    faq JSONB DEFAULT '[]',
+
+    -- SEO fields (multilingual)
+    seo_meta_title_en TEXT DEFAULT '',
+    seo_meta_title_de TEXT DEFAULT '',
+    seo_meta_title_ru TEXT DEFAULT '',
+    seo_meta_description_en TEXT DEFAULT '',
+    seo_meta_description_de TEXT DEFAULT '',
+    seo_meta_description_ru TEXT DEFAULT '',
+    seo_keywords_en TEXT DEFAULT '',
+    seo_keywords_de TEXT DEFAULT '',
+    seo_keywords_ru TEXT DEFAULT '',
+    seo_og_image TEXT DEFAULT '',
+    seo_canonical_url TEXT DEFAULT '',
 
     -- Timestamps
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -110,6 +139,9 @@ CREATE TABLE IF NOT EXISTS itineraries (
     description_en TEXT DEFAULT '',
     description_de TEXT DEFAULT '',
     description_ru TEXT DEFAULT '',
+
+    -- Day image
+    image TEXT DEFAULT '',
 
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

@@ -18,6 +18,7 @@ interface Tour {
   price: number;
   rating: number;
   reviews: number;
+  reviews_count: number;
   is_bestseller: boolean;
   tour_type: string;
 }
@@ -61,7 +62,7 @@ export default function FeaturedTours() {
     duration: tour.duration,
     price: tour.price,
     rating: tour.rating || 0,
-    reviews: tour.reviews || 0,
+    reviews: tour.reviews_count || tour.reviews || 0,
     isBestseller: tour.is_bestseller,
   }));
 

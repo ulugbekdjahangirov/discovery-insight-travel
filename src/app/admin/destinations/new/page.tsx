@@ -211,14 +211,15 @@ export default function NewDestinationPage() {
                   required
                 >
                   <option value="">Davlatni tanlang</option>
-                  <option value="Uzbekistan">Uzbekistan</option>
-                  <option value="Kazakhstan">Kazakhstan</option>
-                  <option value="Kyrgyzstan">Kyrgyzstan</option>
-                  <option value="Tajikistan">Tajikistan</option>
-                  <option value="Turkmenistan">Turkmenistan</option>
+                  <option value="uzbekistan">Uzbekistan</option>
+                  <option value="kazakhstan">Kazakhstan</option>
+                  <option value="kyrgyzstan">Kyrgyzstan</option>
+                  <option value="tajikistan">Tajikistan</option>
+                  <option value="turkmenistan">Turkmenistan</option>
+                  <option value="silk-road">Silk Road</option>
                 </select>
                 <p className="text-sm text-green-600 mt-1">
-                  ✓ Tanlagan davlatingiz menyuda avtomatik ko'rinadi
+                  ✓ Destination tanlagan davlat sahifasida avtomatik ko'rinadi
                 </p>
               </div>
 
